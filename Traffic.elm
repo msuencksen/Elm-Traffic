@@ -41,6 +41,9 @@ infinity = 9999
 
 type alias Direction = { dx: Int, dy: Int }
 
+type CarTurn =
+  Left | Right | Straight
+
 type alias Car = {
   x: Int
 }
@@ -50,15 +53,26 @@ initialCar = { x=0 }
 
 type alias Point = {x: Int, y: Int}
 
+type alias Light =
+  {
+    on: Bool,
+    p: Int,
+    left: Int,
+    right: Int,
+    straight: Bool
+  }
+
 type alias Lights =
-  Array { on: Bool, p: Int}
+  Array Light
 
 type alias Lane = {
   cars: List Car,
   direction: Direction,
   lights: Lights,
   startCoord: Point,
-  endCoord: Point
+  endCoord: Point,
+  newCarProbability: Float,
+  newCarRandom01: Float
 }
 
 -- Model
@@ -66,6 +80,7 @@ type alias Model = {
   lanes : Array Lane,
   svgLanes : List (Svg Msg)
   }
+
 -- updates
 type Msg =
   TimerNext Time
@@ -78,29 +93,42 @@ type Msg =
 -- initiales Model
 initialModel : Model
 initialModel = { lanes = Array.fromList
-               [ { cars=[initialCar],
+               [
+                -- lane 0
+                 { cars=[initialCar],
                    direction={dx=1, dy=0},
-                  lights=Array.fromList[{on=True, p=200}],
-                  startCoord = {x=0, y=112},
-                  endCoord = {x=1000, y=112}
+                   lights=Array.fromList[{on=True, p=200, left=3, right=2, straight=True}],
+                   startCoord = {x=0, y=112},
+                   endCoord = {x=1000, y=112},
+                   newCarProbability=0.5,
+                   newCarRandom01=0
                  },
+                 -- lane 1
                  { cars=[initialCar, initialCar],
                    direction={dx=-1, dy=0},
-                  lights=Array.fromList [{on=True, p=780}, {on=True, p=300}],
+                  lights=Array.fromList [{on=True, p=780, left=2, right=3, straight=True}, {on=True, p=220, left=2, right=3, straight=True}],
                   startCoord = {x=0, y=100},
-                  endCoord = {x=1000, y=100}
+                  endCoord = {x=1000, y=100},
+                  newCarProbability=0.5,
+                  newCarRandom01=0
                  },
+                 -- lane 2
                  { cars=[initialCar],
                    direction={dx=0, dy=1},
-                  lights=Array.fromList [{on=True, p=90}],
+                  lights=Array.fromList [{on=True, p=90, left=0, right=1, straight=True}],
                   startCoord = {x=210, y=00},
-                  endCoord = {x=210, y=700}
+                  endCoord = {x=210, y=700},
+                  newCarProbability=0.5,
+                  newCarRandom01=0
                  },
+                 -- lane 3
                  { cars=[initialCar],
                    direction={dx=0, dy=-1},
-                  lights=Array.fromList [{on=True, p=590}],
+                  lights=Array.fromList [{on=True, p=590, left=1, right=0, straight=True}],
                   startCoord = {x=222, y=0},
-                  endCoord = {x=222, y=700}
+                  endCoord = {x=222, y=700},
+                  newCarProbability=0.5,
+                  newCarRandom01=0
                  }
                ]
                , svgLanes = []
@@ -151,12 +179,18 @@ moveCar direction lights car cars =
         firstCar :: carList ->
           firstCar.x-car.x
 
+    nextTrafficLight =
+      lights |> Array.filter (\ampel -> ampel.on && car.x <= ampel.p) |> Array.foldl (\light nextLight -> nearestLight car.x light nextLight) Nothing
 
-    ampelAbstand =
-      lights |> Array.filter (\ampel -> ampel.on) |> Array.foldl (\a b -> Basics.min (a.p-car.x) b) infinity
+    carClear1 = (abstandCar > carClearance)
+
+    carClear2 =
+        case nextTrafficLight of
+          Nothing -> True
+          Just light -> (light.p - car.x)  > carClearance
 
     carMoveX =
-      if (abstandCar >carClearance && ampelAbstand > carClearance) then
+      if carClear1 && carClear2 then
         1
       else
         0
@@ -165,6 +199,16 @@ moveCar direction lights car cars =
       { car | x = car.x + carMoveX }
   in
     movedCar :: cars
+
+nearestLight: Int -> Light -> Maybe Light -> Maybe Light
+nearestLight cx light1 light2 =
+  case (light1, light2) of
+    (l1, Nothing) -> Just l1
+    (l1, Just l2) ->
+      if (l1.p-cx) < (l2.p-cx) then
+        Just l1
+      else
+        Just l2
 
 
 -- autoplay timer
