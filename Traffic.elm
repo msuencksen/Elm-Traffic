@@ -7,6 +7,7 @@ import Svg.Attributes exposing (..)
 import Random exposing (..)
 import Time exposing (..)
 import Array exposing (..)
+import Array.Extra exposing (..)
 --
 -- Series9
 --
@@ -45,11 +46,12 @@ type CarTurn =
   Left | Right | Straight
 
 type alias Car = {
-  x: Int
+  x: Int,
+  nextCarTurn: Maybe CarTurn
 }
 
 initialCar: Car
-initialCar = { x=0 }
+initialCar = { x=0, nextCarTurn=Nothing }
 
 type alias Point = {x: Int, y: Int}
 
@@ -57,9 +59,10 @@ type alias Light =
   {
     on: Bool,
     p: Int,
-    left: Int,
-    right: Int,
-    straight: Bool
+    left: Maybe Int,
+    right: Maybe Int,
+    straight: Bool,
+    nextCarTurn: Maybe CarTurn
   }
 
 type alias Lights =
@@ -85,7 +88,7 @@ type alias Model = {
 type Msg =
   TimerNext Time
   | SwitchLight Int Int
-  | CarProbability Float
+  | CarProbability (List Float)
   | Reset
   | Pause
 
@@ -97,7 +100,7 @@ initialModel = { lanes = Array.fromList
                 -- lane 0
                  { cars=[initialCar],
                    direction={dx=1, dy=0},
-                   lights=Array.fromList[{on=True, p=200, left=3, right=2, straight=True}],
+                   lights=Array.fromList[{on=True, p=200, left=Just 3, right=Just 2, straight=True, nextCarTurn=Nothing}],
                    startCoord = {x=0, y=112},
                    endCoord = {x=1000, y=112},
                    newCarProbability=0.5,
@@ -106,7 +109,7 @@ initialModel = { lanes = Array.fromList
                  -- lane 1
                  { cars=[initialCar, initialCar],
                    direction={dx=-1, dy=0},
-                  lights=Array.fromList [{on=True, p=780, left=2, right=3, straight=True}, {on=True, p=220, left=2, right=3, straight=True}],
+                  lights=Array.fromList [{on=True, p=780, left=Just 2, right=Just 3, straight=True, nextCarTurn=Nothing}, {on=True, p=220, left=Just 2, right=Just 3, straight=True, nextCarTurn=Nothing}],
                   startCoord = {x=0, y=100},
                   endCoord = {x=1000, y=100},
                   newCarProbability=0.5,
@@ -115,7 +118,7 @@ initialModel = { lanes = Array.fromList
                  -- lane 2
                  { cars=[initialCar],
                    direction={dx=0, dy=1},
-                  lights=Array.fromList [{on=True, p=90, left=0, right=1, straight=True}],
+                  lights=Array.fromList [{on=True, p=90, left=Just 0, right=Just 1, straight=True, nextCarTurn=Nothing}],
                   startCoord = {x=210, y=00},
                   endCoord = {x=210, y=700},
                   newCarProbability=0.5,
@@ -124,7 +127,7 @@ initialModel = { lanes = Array.fromList
                  -- lane 3
                  { cars=[initialCar],
                    direction={dx=0, dy=-1},
-                  lights=Array.fromList [{on=True, p=590, left=1, right=0, straight=True}],
+                  lights=Array.fromList [{on=True, p=590, left=Just 1, right=Just 0, straight=True, nextCarTurn=Nothing}],
                   startCoord = {x=222, y=0},
                   endCoord = {x=222, y=700},
                   newCarProbability=0.5,
@@ -145,13 +148,34 @@ update msg model =
   case msg of
     Pause -> (model, Cmd.none)
     Reset -> init
-    TimerNext time -> (updateModel model, Random.generate CarProbability (Random.float 0 1))
+    TimerNext time -> (updateModel model, Random.generate CarProbability (Random.list 4 (Random.float 0 1)) )
     SwitchLight laneNo lightsNo ->
       case Array.get laneNo model.lanes of
         Nothing -> (model, Cmd.none)
         Just lane -> ( { model | lanes = Array.set laneNo (switchLightNo lane lightsNo) model.lanes}, Cmd.none)
-    CarProbability p ->
-      (model, Cmd.none)
+
+    CarProbability randomList ->
+      let
+        randomArray = Array.fromList randomList
+        laneZippedWithRandom = Array.Extra.map2 (,) model.lanes randomArray
+      in
+        ({ model | lanes = Array.map addNewCar laneZippedWithRandom }, Cmd.none)
+
+
+addNewCar: (Lane,Float) -> Lane
+addNewCar (lane,probability) =
+  let
+    distance =
+      case (List.head lane.cars) of
+        Nothing -> carLength + carSpace
+        Just car -> car.x
+  in
+    if probability > 0.99 && distance > (carLength + carSpace) then
+      { lane | cars = initialCar :: lane.cars}
+    else
+      lane
+
+
 
 switchLightNo: Lane -> Int -> Lane
 switchLightNo lane lightsNo =
@@ -180,17 +204,17 @@ moveCar direction lights car cars =
           firstCar.x-car.x
 
     nextTrafficLight =
-      lights |> Array.filter (\ampel -> ampel.on && car.x <= ampel.p) |> Array.foldl (\light nextLight -> nearestLight car.x light nextLight) Nothing
+      lights |> Array.filter (\ampel -> car.x <= ampel.p) |> Array.foldl (\light nextLight -> nearestLight car.x light nextLight) Nothing
 
     carClear1 = (abstandCar > carClearance)
 
-    carClear2 =
+    carLightsDistance =
         case nextTrafficLight of
-          Nothing -> True
-          Just light -> (light.p - car.x)  > carClearance
+          Nothing -> Nothing
+          Just light -> Just (light.p - car.x)
 
     carMoveX =
-      if carClear1 && carClear2 then
+      if carClear1 && ( (Maybe.withDefault infinity carLightsDistance) > carClearance) || Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) then
         1
       else
         0
@@ -221,7 +245,7 @@ view : Model -> Html Msg
 view model =
 
         div [bodyStyle]
-        [ h4 [] [Html.text "ElmTown"]
+        [ h4 [] [Html.text "ElmTown 9d"]
         , button [ onClick (SwitchLight 0 0) ] [ Html.text "Lights1" ]
         , button [ onClick (SwitchLight 1 0) ] [ Html.text "Lights2" ]
         , button [ onClick (SwitchLight 1 1) ] [ Html.text "Lights3" ]
