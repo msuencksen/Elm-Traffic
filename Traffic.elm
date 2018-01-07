@@ -43,7 +43,7 @@ infinity = 9999
 type alias Direction = { dx: Int, dy: Int }
 
 type CarTurn =
-  Left | Right | Straight
+  Left Int | Right Int | Straight
 
 type alias Car = {
   x: Int,
@@ -55,15 +55,14 @@ initialCar = { x=0, nextCarTurn=Nothing }
 
 type alias Point = {x: Int, y: Int}
 
-type alias Light =
-  {
-    on: Bool,
-    p: Int,
-    left: Maybe Int,
-    right: Maybe Int,
-    straight: Bool,
-    nextCarTurn: Maybe CarTurn
-  }
+type alias Light = {
+  on: Bool,
+  p: Int,
+  left: Maybe Int,
+  right: Maybe Int,
+  straight: Bool,
+  nextCarTurn: Maybe CarTurn
+}
 
 type alias Lights =
   Array Light
@@ -89,6 +88,7 @@ type Msg =
   TimerNext Time
   | SwitchLight Int Int
   | CarProbability (List Float)
+  | TurnProbability Int (List Float)
   | Reset
   | Pause
 
@@ -148,7 +148,7 @@ update msg model =
   case msg of
     Pause -> (model, Cmd.none)
     Reset -> init
-    TimerNext time -> (updateModel model, Random.generate CarProbability (Random.list 4 (Random.float 0 1)) )
+    TimerNext time -> (updateModel model, Cmd.batch (randomNumbers model) )
     SwitchLight laneNo lightsNo ->
       case Array.get laneNo model.lanes of
         Nothing -> (model, Cmd.none)
@@ -161,6 +161,47 @@ update msg model =
       in
         ({ model | lanes = Array.map addNewCar laneZippedWithRandom }, Cmd.none)
 
+    TurnProbability laneId randomFloats ->
+      ({model | lanes = updateTurns laneId model.lanes (Array.fromList randomFloats)}, Cmd.none)
+
+updateTurns: Int -> Array Lane -> Array Float -> Array Lane
+updateTurns laneId lanes randomFloats =
+  let
+    getLane = Array.get laneId lanes
+  in
+    case getLane of
+      Nothing -> lanes
+      Just lane ->
+        let
+          lightsZippedWithRandom = Array.Extra.map2 (,) lane.lights randomFloats
+        in
+          lanes |> Array.set laneId { lane | lights = Array.Extra.map2 probeNextTurn lane.lights randomFloats}
+
+probeNextTurn: Light -> Float -> Light
+probeNextTurn light randomFloat =
+  { light | nextCarTurn =
+    case (light.left, light.right, light.straight) of
+      (Nothing, Nothing, False) -> Nothing
+      (Nothing, Nothing, True) -> Just Straight
+      (Just l, Nothing, False) -> Just (Left l)
+      (Just l, Nothing, True) -> if (randomFloat < 0.3) then Just (Left l) else Just Straight
+      (Nothing, Just r, False) -> Just (Right r)
+      (Nothing, Just r, True) -> if (randomFloat < 0.3) then Just (Right r) else Just Straight
+      (Just l, Just r, False) -> if (randomFloat < 0.5) then Just (Left l) else Just (Right r)
+      (Just l, Just r, True) -> if (randomFloat < 0.25) then Just (Left l) else if (randomFloat > 0.75) then Just (Right r) else Just Straight
+  }
+
+randomNumbers: Model -> List (Cmd Msg)
+randomNumbers model =
+  let
+    -- probability for new car in lane
+    laneRandomCar = Random.generate CarProbability (Random.list (Array.length model.lanes) (Random.float 0 1))
+
+    -- probability for turns at junction lights
+    laneRandomTurns = Array.toList (Array.indexedMap (\laneId lane -> (Random.generate (TurnProbability laneId) (Random.list (Array.length lane.lights) (Random.float 0 1)) ) ) model.lanes)
+
+  in
+    laneRandomCar :: laneRandomTurns
 
 addNewCar: (Lane,Float) -> Lane
 addNewCar (lane,probability) =
@@ -174,7 +215,6 @@ addNewCar (lane,probability) =
       { lane | cars = initialCar :: lane.cars}
     else
       lane
-
 
 
 switchLightNo: Lane -> Int -> Lane
@@ -210,17 +250,34 @@ moveCar direction lights car cars =
 
     carLightsDistance =
         case nextTrafficLight of
-          Nothing -> Nothing
-          Just light -> Just (light.p - car.x)
+          Nothing -> infinity
+          Just light -> light.p - car.x
 
     carMoveX =
-      if carClear1 && ( (Maybe.withDefault infinity carLightsDistance) > carClearance) || Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) then
+      if carClear1 && ( carLightsDistance > carClearance) || Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) then
         1
       else
         0
 
+    carTurn =
+      if (car.nextCarTurn == Nothing) then
+        if (carLightsDistance == carClearance) then
+          case nextTrafficLight of
+            Nothing -> Nothing
+            Just light ->
+              case light.nextCarTurn of
+                Nothing -> Nothing
+                Just carTurn -> Just carTurn
+        else
+          Nothing
+      else
+        car.nextCarTurn
+
     movedCar =
-      { car | x = car.x + carMoveX }
+      { car |
+         x = car.x + carMoveX,
+         nextCarTurn = carTurn
+      }
   in
     movedCar :: cars
 
@@ -245,7 +302,7 @@ view : Model -> Html Msg
 view model =
 
         div [bodyStyle]
-        [ h4 [] [Html.text "ElmTown 9d"]
+        [ h4 [] [Html.text "ElmTown 9e"]
         , button [ onClick (SwitchLight 0 0) ] [ Html.text "Lights1" ]
         , button [ onClick (SwitchLight 1 0) ] [ Html.text "Lights2" ]
         , button [ onClick (SwitchLight 1 1) ] [ Html.text "Lights3" ]
@@ -315,12 +372,22 @@ svgCarBox lane car =
       else
         carLength
   in
-    svgCar px py boxWidth boxHeight
+    svgCar px py boxWidth boxHeight (svgCarColor car.nextCarTurn)
 
 -- Svg Car
-svgCar : Int -> Int -> Int -> Int -> Svg Msg
-svgCar px py w h =
-    rect [ x (toString px), y (toString py),  Svg.Attributes.width (toString w), Svg.Attributes.height (toString h), transform "scale(1,1)", fill "grey" ] []
+svgCar : Int -> Int -> Int -> Int -> String -> Svg Msg
+svgCar px py w h carColorStr =
+    rect [ x (toString px), y (toString py),  Svg.Attributes.width (toString w), Svg.Attributes.height (toString h), transform "scale(1,1)", fill carColorStr ] []
+
+svgCarColor: Maybe CarTurn -> String
+svgCarColor maybeCarTurn =
+  case maybeCarTurn of
+    Nothing -> "grey"
+    Just carTurn ->
+      case carTurn of
+        Left _ -> "green"
+        Right _ -> "red"
+        Straight -> "white"
 
 
 -- html checkbox
