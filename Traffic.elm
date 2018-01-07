@@ -1,80 +1,170 @@
 module Traffic exposing (..)
 import Html exposing (..)
+import Html.Attributes exposing (..)
+import Html.Events exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
 import Random exposing (..)
 import Time exposing (..)
-
+import Array exposing (..)
 --
 -- Series9
 --
 
-initialCar: Car
-initialCar = { x=0, y=100 }
 
 carLength: Int
 carLength = 16
 
+carWidth: Int
+carWidth = 8
+
+carHalfWidth: Int
+carHalfWidth = carWidth // 2
+
+carHalfLength: Int
+carHalfLength = carLength // 2
+
 carSpace: Int
 carSpace = 2
 
-type Direction =
-  North
-  | South
-  | West
-  | East
+carClearance: Int
+carClearance = carLength+carSpace
+
+laneWidth: Int
+laneWidth = 12
+
+laneHalfWidth: Int
+laneHalfWidth = laneWidth // 2
+
+infinity: Int
+infinity = 9999
+
+type alias Direction = { dx: Int, dy: Int }
 
 type alias Car = {
-  x: Int, y: Int
+  x: Int
 }
 
-type alias Street = {
+initialCar: Car
+initialCar = { x=0 }
+
+type alias Point = {x: Int, y: Int}
+
+type alias Lights =
+  Array { on: Bool, p: Int}
+
+type alias Lane = {
   cars: List Car,
-  direction: Direction
+  direction: Direction,
+  lights: Lights,
+  startCoord: Point,
+  endCoord: Point
 }
 
 -- Model
-type alias Model = List Car
-
+type alias Model = {
+  lanes : Array Lane,
+  svgLanes : List (Svg Msg)
+  }
 -- updates
 type Msg =
   TimerNext Time
-  | CarProbability (Float,Float)
+  | SwitchLight Int Int
+  | CarProbability Float
+  | Reset
+  | Pause
 
 
 -- initiales Model
 initialModel : Model
-initialModel = [ initialCar ]
-
+initialModel = { lanes = Array.fromList
+               [ { cars=[initialCar],
+                   direction={dx=1, dy=0},
+                  lights=Array.fromList[{on=True, p=200}],
+                  startCoord = {x=0, y=112},
+                  endCoord = {x=1000, y=112}
+                 },
+                 { cars=[initialCar, initialCar],
+                   direction={dx=-1, dy=0},
+                  lights=Array.fromList [{on=True, p=780}, {on=True, p=300}],
+                  startCoord = {x=0, y=100},
+                  endCoord = {x=1000, y=100}
+                 },
+                 { cars=[initialCar],
+                   direction={dx=0, dy=1},
+                  lights=Array.fromList [{on=True, p=90}],
+                  startCoord = {x=210, y=00},
+                  endCoord = {x=210, y=700}
+                 },
+                 { cars=[initialCar],
+                   direction={dx=0, dy=-1},
+                  lights=Array.fromList [{on=True, p=590}],
+                  startCoord = {x=222, y=0},
+                  endCoord = {x=222, y=700}
+                 }
+               ]
+               , svgLanes = []
+             }
 
 -- called upon start
 init : (Model, Cmd a)
 init =
-  (initialModel, Cmd.none)
+  ( {initialModel | svgLanes = Array.map drawLaneElements initialModel.lanes |> Array.foldr (++) []}, Cmd.none)
 
 -- update
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    TimerNext time -> (List.map moveCar model, Random.generate CarProbability (Random.pair (Random.float 0 1) (Random.float 0 1)) )
-    CarProbability (p,p2) ->
-      let
-        distance =
-          case (List.head model) of
-            Nothing -> carLength + carSpace
-            Just {x,y} -> x
+    Pause -> (model, Cmd.none)
+    Reset -> init
+    TimerNext time -> (updateModel model, Random.generate CarProbability (Random.float 0 1))
+    SwitchLight laneNo lightsNo ->
+      case Array.get laneNo model.lanes of
+        Nothing -> (model, Cmd.none)
+        Just lane -> ( { model | lanes = Array.set laneNo (switchLightNo lane lightsNo) model.lanes}, Cmd.none)
+    CarProbability p ->
+      (model, Cmd.none)
 
-        newModel =
-          if p > 0.99 && distance > (carLength + carSpace) then
-            initialCar :: model
-          else
-            model
-      in
-        (List.filter (\{x,y} -> (x<500)) newModel, Cmd.none)
+switchLightNo: Lane -> Int -> Lane
+switchLightNo lane lightsNo =
+  case Array.get lightsNo lane.lights of
+    Nothing -> lane
+    Just light -> {lane | lights = Array.set lightsNo { light | on = not light.on } lane.lights } -- toggles light.on
 
-moveCar: Car -> Car
-moveCar car =
-  { car | x = car.x+1 }
+updateModel: Model -> Model
+updateModel model =
+  let
+    laneUpdate = Array.map processLanes model.lanes
+  in
+    {model | lanes = laneUpdate}
+
+processLanes: Lane -> Lane
+processLanes lane =
+  { lane | cars = List.foldr (moveCar lane.direction lane.lights) [] lane.cars }
+
+moveCar: Direction -> Lights -> Car -> List Car -> List Car
+moveCar direction lights car cars =
+  let
+    abstandCar =
+      case cars of
+        [] -> infinity
+        firstCar :: carList ->
+          firstCar.x-car.x
+
+
+    ampelAbstand =
+      lights |> Array.filter (\ampel -> ampel.on) |> Array.foldl (\a b -> Basics.min (a.p-car.x) b) infinity
+
+    carMoveX =
+      if (abstandCar >carClearance && ampelAbstand > carClearance) then
+        1
+      else
+        0
+
+    movedCar =
+      { car | x = car.x + carMoveX }
+  in
+    movedCar :: cars
 
 
 -- autoplay timer
@@ -85,14 +175,103 @@ subscriptions model =
 -- svg view
 view : Model -> Html Msg
 view model =
-        svg [ viewBox "0 0 1000 1000", Svg.Attributes.width "1000px", Svg.Attributes.floodColor "red" ]
-        (  List.map svgCar model)
 
--- Svg-Kreis mit Farbe zeichnen
-svgCar : Car -> Svg Msg
-svgCar car =
-    rect [ x (toString (car.x)), y (toString (car.y)), width (toString carLength), height (toString 8), transform "scale(2,2)",fill "black" ] []
+        div [bodyStyle]
+        [ h4 [] [Html.text "ElmTown"]
+        , button [ onClick (SwitchLight 0 0) ] [ Html.text "Lights1" ]
+        , button [ onClick (SwitchLight 1 0) ] [ Html.text "Lights2" ]
+        , button [ onClick (SwitchLight 1 1) ] [ Html.text "Lights3" ]
+        , button [ onClick Reset ] [ Html.text "Reset" ]
+        , checkbox Pause "Pause"
+        , br [] []
 
+
+
+        , div [svgBoxStyle] [
+            div [lawnStyle] [],
+            div [svgStyle]
+            [
+              svg [ viewBox "0 0 1000 700", Svg.Attributes.width "1000px" ]
+              (
+              model.svgLanes ++
+              -- Array.map (\lane -> List.map (svgCar lane) lane.cars) model |> Array.foldr (++) [] -- flatmap
+              (Array.map (\lane -> List.map (svgCarBox lane) lane.cars) model.lanes |> Array.foldr (++) []) -- flatmap
+
+              )
+            ]
+          ]
+
+        ]
+
+drawLaneElements: Lane -> List (Svg Msg)
+drawLaneElements lane =
+  let
+    laneConcrete =
+      if lane.direction.dx /= 0 then
+        svgLane lane.startCoord.x (lane.startCoord.y-laneHalfWidth) (lane.endCoord.x - lane.startCoord.x) laneWidth
+      else
+        svgLane (lane.startCoord.x-laneHalfWidth) (lane.startCoord.y) laneWidth (lane.endCoord.y - lane.startCoord.y)
+
+  in
+    [laneConcrete]
+
+-- svgLane
+svgLane: Int -> Int -> Int -> Int -> Svg Msg
+svgLane px py w h =
+  rect [ x (toString px), y (toString py), Svg.Attributes.width (toString w), Svg.Attributes.height (toString h), fill "black" ] []
+
+svgCarBox : Lane -> Car -> Svg Msg
+svgCarBox lane car =
+  let
+    px =
+      case lane.direction.dx of
+        (1) -> car.x - carHalfLength
+        (-1) -> lane.endCoord.x - car.x + carHalfLength
+        _ -> lane.startCoord.x - carHalfWidth
+
+    py =
+      case lane.direction.dy of
+        (1) -> car.x - carHalfLength
+        (-1) -> lane.endCoord.y - car.x + carHalfLength
+        _ -> lane.startCoord.y - carHalfWidth
+
+    boxWidth =
+      if lane.direction.dx /= 0 then
+        carLength
+      else
+        carWidth
+
+    boxHeight =
+      if lane.direction.dx /= 0 then
+        carWidth
+      else
+        carLength
+  in
+    svgCar px py boxWidth boxHeight
+
+-- Svg Car
+svgCar : Int -> Int -> Int -> Int -> Svg Msg
+svgCar px py w h =
+    rect [ x (toString px), y (toString py),  Svg.Attributes.width (toString w), Svg.Attributes.height (toString h), transform "scale(1,1)", fill "grey" ] []
+
+
+-- html checkbox
+checkbox : Msg -> String -> Html Msg
+checkbox msg title =
+    label [] [ input [ Html.Attributes.type_ "checkbox", onClick msg ] [], Html.text title ]
+
+
+bodyStyle =
+   Html.Attributes.style [("backgroundColor", "black"), ("color","white"), ("width","100%"),("height","100%")]
+
+lawnStyle =
+   Html.Attributes.style [("position","absolute"),("backgroundColor", "green"),("width", "200px"), ("height","400px")]
+
+svgBoxStyle =
+  Html.Attributes.style [("margin","auto"),("width","1000px"),("height","700px"),("position","relative"),("top","100px"),("backgroundColor", "orange"),("border","1px"),("border-color","white")]
+
+svgStyle =
+  Html.Attributes.style [("position","absolute")]
 
 
 -- main program
