@@ -1,4 +1,4 @@
-module Series9 exposing (..)
+module Traffic exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -8,136 +8,15 @@ import Random exposing (..)
 import Time exposing (..)
 import Array exposing (..)
 import Array.Extra exposing (..)
+import LaneSwitch exposing (..)
+import Types exposing (..)
+import Constants exposing (..)
+import Initial exposing (..)
+
 --
--- Series9
+-- Elm Traffic
 --
 
-
-carLength: Int
-carLength = 16
-
-carWidth: Int
-carWidth = 8
-
-carHalfWidth: Int
-carHalfWidth = carWidth // 2
-
-carHalfLength: Int
-carHalfLength = carLength // 2
-
-carSpace: Int
-carSpace = 2
-
-carClearance: Int
-carClearance = carLength+carSpace
-
-laneWidth: Int
-laneWidth = 20
-
-carTurnStep = 90 // (laneWidth // 2)
-
-laneHalfWidth: Int
-laneHalfWidth = laneWidth // 2
-
-infinity: Int
-infinity = 9999
-
-type alias Direction = { dx: Int, dy: Int }
-
-type CarTurn =
-  Left Int | Right Int | Straight
-
-type alias Car = {
-  x: Int,
-  nextCarTurn: Maybe CarTurn,
-  turnAngle: Int
-}
-
-initialCar: Car
-initialCar = { x=0, nextCarTurn=Nothing, turnAngle=0 }
-
-type alias Point = {x: Int, y: Int}
-
-type alias Light = {
-  on: Bool,
-  p: Int,
-  left: Maybe Int,
-  right: Maybe Int,
-  straight: Bool,
-  nextCarTurn: Maybe CarTurn
-}
-
-type alias Lights =
-  Array Light
-
-type alias Lane = {
-  cars: List Car,
-  direction: Direction,
-  lights: Lights,
-  startCoord: Point,
-  endCoord: Point,
-  newCarProbability: Float,
-  newCarRandom01: Float
-}
-
--- Model
-type alias Model = {
-  lanes : Array Lane,
-  svgLanes : List (Svg Msg)
-  }
-
--- updates
-type Msg =
-  TimerNext Time
-  | SwitchLight Int Int
-  | CarProbability (List Float)
-  | TurnProbability Int (List Float)
-  | Reset
-  | Pause
-
--- initiales Model
-initialModel : Model
-initialModel = { lanes = Array.fromList
-               [
-                -- lane 0
-                 { cars=[initialCar],
-                   direction={dx=1, dy=0},
-                   lights=Array.fromList[{on=True, p=200, left=Just 3, right=Just 2, straight=True, nextCarTurn=Nothing}],
-                   startCoord = {x=0, y=112},
-                   endCoord = {x=1000, y=112},
-                   newCarProbability=0.5,
-                   newCarRandom01=0
-                 },
-                 -- lane 1
-                 { cars=[initialCar, initialCar],
-                   direction={dx=-1, dy=0},
-                  lights=Array.fromList [{on=True, p=780, left=Just 2, right=Just 3, straight=True, nextCarTurn=Nothing}, {on=True, p=220, left=Just 2, right=Just 3, straight=True, nextCarTurn=Nothing}],
-                  startCoord = {x=0, y=100},
-                  endCoord = {x=1000, y=100},
-                  newCarProbability=0.5,
-                  newCarRandom01=0
-                 },
-                 -- lane 2
-                 { cars=[initialCar],
-                   direction={dx=0, dy=1},
-                  lights=Array.fromList [{on=True, p=90, left=Just 0, right=Just 1, straight=True, nextCarTurn=Nothing}],
-                  startCoord = {x=210, y=00},
-                  endCoord = {x=210, y=700},
-                  newCarProbability=0.5,
-                  newCarRandom01=0
-                 },
-                 -- lane 3
-                 { cars=[initialCar],
-                   direction={dx=0, dy=-1},
-                  lights=Array.fromList [{on=True, p=590, left=Just 1, right=Just 0, straight=True, nextCarTurn=Nothing}],
-                  startCoord = {x=222, y=0},
-                  endCoord = {x=222, y=700},
-                  newCarProbability=0.5,
-                  newCarRandom01=0
-                 }
-               ]
-               , svgLanes = []
-             }
 
 -- called upon start
 init : (Model, Cmd a)
@@ -239,16 +118,28 @@ updateModel model =
     -- )
 
 
-    laneUpdate = Array.map processLane model.lanes
+    laneUpdate = model.lanes |> Array.map checkCarMovement |> processCarLaneSwitch |> Array.map processCarMove
   in
     {model | lanes = laneUpdate}
 
-processLane: Lane -> Lane
-processLane lane =
-  { lane | cars = List.foldr (moveCar lane.direction lane.lights) [] lane.cars }
 
-moveCar: Direction -> Lights -> Car -> List Car -> List Car
-moveCar direction lights car cars =
+processCarMove: Lane -> Lane
+processCarMove lane =
+  { lane | cars = lane.cars |> List.map moveCar |> List.filter (\car -> car.x < lane.distance) }
+
+moveCar: Car -> Car
+moveCar car =
+  case car.canMove of
+    False -> car
+    True -> { car | x = car.x+1, canMove = False, nextCarTurn = Nothing }
+
+
+checkCarMovement: Lane -> Lane
+checkCarMovement lane =
+  { lane | cars = lane.cars |> List.foldr (checkCarMove lane.direction lane.lights) [] }
+
+checkCarMove: Direction -> Lights -> Car -> List Car -> List Car
+checkCarMove direction lights car cars =
   let
     abstandCar =
       case cars of
@@ -266,24 +157,18 @@ moveCar direction lights car cars =
           Nothing -> infinity
           Just light -> light.p - car.x
 
-    carMoveX =
-      if carClear1 && ( carLightsDistance > carClearance) || carLightsDistance < 0 || Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) then
-        1
-      else
-        0
+    carCanMove = -- bool
+      carClear1 && ( carLightsDistance > carClearance) || carLightsDistance < 0 || Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight)
 
     -- get a turn decision from random number stored with light
     carTurn =
-      if (car.nextCarTurn == Nothing) then
-        if (carLightsDistance == carClearance) then
-          case nextTrafficLight of
-            Nothing -> Nothing
-            Just light ->
-              case light.nextCarTurn of
-                Nothing -> Nothing
-                Just carTurn -> Just carTurn
-        else
-          Nothing
+      if (carLightsDistance == carClearance && car.nextCarTurn == Nothing ) then
+        case nextTrafficLight of
+          Nothing -> Nothing
+          Just light ->
+            case light.nextCarTurn of
+              Nothing -> Nothing
+              Just carTurn -> Just carTurn
       else
         car.nextCarTurn
 
@@ -306,13 +191,13 @@ moveCar direction lights car cars =
 
     movedCar =
       { car |
-         x = car.x + carMoveX,
+         canMove = carCanMove,
          nextCarTurn = carTurn
          -- ,turnAngle =
-         --  if carMoveX /= 0 then
-         --    carTurnAngle
-         -- else
-         --   0
+        --   if carMoveX /= 0 then
+        --     carTurnAngle
+        --  else
+        --    0
       }
   in
     movedCar :: cars
@@ -339,9 +224,10 @@ view model =
 
         div [bodyStyle]
         [ h4 [] [Html.text "ElmTown 9e"]
-        , button [ onClick (SwitchLight 0 0) ] [ Html.text "Lights1" ]
-        , button [ onClick (SwitchLight 1 0) ] [ Html.text "Lights2" ]
-        , button [ onClick (SwitchLight 1 1) ] [ Html.text "Lights3" ]
+        , button [ onClick (SwitchLight 0 0) ] [ Html.text "LightsW>E" ]
+        , button [ onClick (SwitchLight 1 0) ] [ Html.text "LightsE>W" ]
+        , button [ onClick (SwitchLight 2 0) ] [ Html.text "LightsN>S" ]
+        , button [ onClick (SwitchLight 3 0) ] [ Html.text "LightsS>N" ]
         , button [ onClick Reset ] [ Html.text "Reset" ]
         , checkbox Pause "Pause"
         , br [] []
