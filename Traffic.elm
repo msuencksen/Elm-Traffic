@@ -308,11 +308,11 @@ moveCar direction lights car cars =
       { car |
          x = car.x + carMoveX,
          nextCarTurn = carTurn
-         ,turnAngle =
-          if carMoveX /= 0 then
-            carTurnAngle
-         else
-           0
+         -- ,turnAngle =
+         --  if carMoveX /= 0 then
+         --    carTurnAngle
+         -- else
+         --   0
       }
   in
     movedCar :: cars
