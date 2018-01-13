@@ -1,4 +1,4 @@
-module Traffic exposing (..)
+module Series9 exposing (..)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (..)
@@ -32,7 +32,9 @@ carClearance: Int
 carClearance = carLength+carSpace
 
 laneWidth: Int
-laneWidth = 12
+laneWidth = 20
+
+carTurnStep = 90 // (laneWidth // 2)
 
 laneHalfWidth: Int
 laneHalfWidth = laneWidth // 2
@@ -47,11 +49,12 @@ type CarTurn =
 
 type alias Car = {
   x: Int,
-  nextCarTurn: Maybe CarTurn
+  nextCarTurn: Maybe CarTurn,
+  turnAngle: Int
 }
 
 initialCar: Car
-initialCar = { x=0, nextCarTurn=Nothing }
+initialCar = { x=0, nextCarTurn=Nothing, turnAngle=0 }
 
 type alias Point = {x: Int, y: Int}
 
@@ -91,7 +94,6 @@ type Msg =
   | TurnProbability Int (List Float)
   | Reset
   | Pause
-
 
 -- initiales Model
 initialModel : Model
@@ -223,15 +225,26 @@ switchLightNo lane lightsNo =
     Nothing -> lane
     Just light -> {lane | lights = Array.set lightsNo { light | on = not light.on } lane.lights } -- toggles light.on
 
+
 updateModel: Model -> Model
 updateModel model =
   let
-    laneUpdate = Array.map processLanes model.lanes
+    turningCars = List.filter (\car -> car.nextCarTurn /= Nothing && car.nextCarTurn /= Just Straight)
+    -- carsToLane = turningCars |> List.map (\car ->
+    --   case car.nextCarTurn of
+    --     Nothing -> (car, -1)
+    --     Just Straight -> (car, -1)
+    --     Just (Left l) -> (car, l)
+    --     Just (Right r) -> (car, r)
+    -- )
+
+
+    laneUpdate = Array.map processLane model.lanes
   in
     {model | lanes = laneUpdate}
 
-processLanes: Lane -> Lane
-processLanes lane =
+processLane: Lane -> Lane
+processLane lane =
   { lane | cars = List.foldr (moveCar lane.direction lane.lights) [] lane.cars }
 
 moveCar: Direction -> Lights -> Car -> List Car -> List Car
@@ -244,7 +257,7 @@ moveCar direction lights car cars =
           firstCar.x-car.x
 
     nextTrafficLight =
-      lights |> Array.filter (\ampel -> car.x <= ampel.p) |> Array.foldl (\light nextLight -> nearestLight car.x light nextLight) Nothing
+      lights |> Array.foldl (\light nextLight -> nearestLight car.x light nextLight) Nothing
 
     carClear1 = (abstandCar > carClearance)
 
@@ -254,11 +267,12 @@ moveCar direction lights car cars =
           Just light -> light.p - car.x
 
     carMoveX =
-      if carClear1 && ( carLightsDistance > carClearance) || Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) then
+      if carClear1 && ( carLightsDistance > carClearance) || carLightsDistance < 0 || Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) then
         1
       else
         0
 
+    -- get a turn decision from random number stored with light
     carTurn =
       if (car.nextCarTurn == Nothing) then
         if (carLightsDistance == carClearance) then
@@ -273,10 +287,32 @@ moveCar direction lights car cars =
       else
         car.nextCarTurn
 
+    carTurnAngle =
+      case car.nextCarTurn of
+        Nothing -> 0
+        Just Straight -> 0
+        Just (Left _) ->
+          -- for left turns, move over 1.5 * lane width
+          if carLightsDistance < -laneWidth && carLightsDistance >= -( laneWidth + laneHalfWidth) then
+            car.turnAngle - carTurnStep
+          else
+            car.turnAngle
+        Just (Right _) ->
+          -- for left turns, move over 0.5 * lane width
+          if carLightsDistance < 0 && carLightsDistance >= -laneHalfWidth then
+            car.turnAngle + carTurnStep
+          else
+            car.turnAngle
+
     movedCar =
       { car |
          x = car.x + carMoveX,
          nextCarTurn = carTurn
+         ,turnAngle =
+          if carMoveX /= 0 then
+            carTurnAngle
+         else
+           0
       }
   in
     movedCar :: cars
@@ -286,7 +322,7 @@ nearestLight cx light1 light2 =
   case (light1, light2) of
     (l1, Nothing) -> Just l1
     (l1, Just l2) ->
-      if (l1.p-cx) < (l2.p-cx) then
+      if abs (l1.p-cx) < abs (l2.p-cx) then
         Just l1
       else
         Just l2
@@ -350,15 +386,15 @@ svgCarBox lane car =
   let
     px =
       case lane.direction.dx of
-        (1) -> car.x - carHalfLength
-        (-1) -> lane.endCoord.x - car.x + carHalfLength
-        _ -> lane.startCoord.x - carHalfWidth
+        (1) -> car.x - carHalfLength -- car position on lane going east
+        (-1) -> lane.endCoord.x - car.x + carHalfLength -- car position on lane going west
+        _ -> lane.startCoord.x - carHalfWidth + (turnDeltaCar car lane.direction.dy) -- fixed horizontal position for lane going south or north
 
     py =
       case lane.direction.dy of
-        (1) -> car.x - carHalfLength
-        (-1) -> lane.endCoord.y - car.x + carHalfLength
-        _ -> lane.startCoord.y - carHalfWidth
+        (1) -> car.x - carHalfLength -- position on lane going south
+        (-1) -> lane.endCoord.y - car.x + carHalfLength -- position on lane going north
+        _ -> lane.startCoord.y - carHalfWidth + (turnDeltaCar car lane.direction.dx) -- fixed vertical position for lane going south or north
 
     boxWidth =
       if lane.direction.dx /= 0 then
@@ -372,12 +408,24 @@ svgCarBox lane car =
       else
         carLength
   in
-    svgCar px py boxWidth boxHeight (svgCarColor car.nextCarTurn)
+    svgCar px py boxWidth boxHeight car.turnAngle (svgCarColor car.nextCarTurn)
+
+turnDeltaCar: Car -> Int -> Int
+turnDeltaCar car direction =
+  if car.turnAngle < 0 then
+    (car.turnAngle // carTurnStep) * direction
+  else
+    (car.turnAngle // carTurnStep) * direction
 
 -- Svg Car
-svgCar : Int -> Int -> Int -> Int -> String -> Svg Msg
-svgCar px py w h carColorStr =
-    rect [ x (toString px), y (toString py),  Svg.Attributes.width (toString w), Svg.Attributes.height (toString h), transform "scale(1,1)", fill carColorStr ] []
+svgCar : Int -> Int -> Int -> Int -> Int -> String -> Svg Msg
+svgCar px py w h rotationAngle carColorStr =
+    rect [ x (toString px),
+           y (toString py),
+           Svg.Attributes.width (toString w),
+           Svg.Attributes.height (toString h),
+           transform ("rotate("++ (toString rotationAngle) ++"," ++ (toString (px+ carHalfLength)) ++ "," ++ (toString (py+carHalfWidth)) ++")" ),
+           fill carColorStr ] []
 
 svgCarColor: Maybe CarTurn -> String
 svgCarColor maybeCarTurn =
