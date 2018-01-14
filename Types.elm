@@ -9,15 +9,20 @@ type alias Direction = { dx: Int, dy: Int }
 type CarTurn =
   Left Int | Right Int | Straight
 
+type TurnTo =
+  TurnToLeft | TurnToRight
+
+type CarStatus =
+  Moving | LightsStop | JamStop | WaitLeftTurn | Turning | TurningIn
+
 type alias Car = {
   x: Int,
+  distancePredecessor: Int,
   canMove: Bool,
   nextCarTurn: Maybe CarTurn,
-  turnAngle: Int
+  turnAngle: Int,
+  carStatus: CarStatus
 }
-
-initialCar: Car
-initialCar = { x=0, canMove = False, nextCarTurn=Nothing, turnAngle=0 }
 
 type alias Point = {x: Int, y: Int}
 
@@ -40,6 +45,7 @@ type alias Lane = {
   startCoord: Point,
   endCoord: Point,
   distance: Int,
+  oppositeLane: Int,
   newCarProbability: Float,
   newCarRandom01: Float
 }
@@ -47,7 +53,8 @@ type alias Lane = {
 -- Model
 type alias Model = {
   lanes : Array Lane,
-  svgLanes : List (Svg Msg)
+  svgLanes : List (Svg Msg),
+  pause: Bool
   }
 
 -- updates

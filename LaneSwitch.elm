@@ -29,23 +29,34 @@ entryAtJunction: Lane -> Lane -> Int
 entryAtJunction fromLane toLane =
   case (toLane.direction.dx, toLane.direction.dy) of
     (1,0) -> fromLane.startCoord.x + laneHalfWidth -- to east->west lane
-    (-1,0) -> toLane.endCoord.x - fromLane.startCoord.x - laneHalfWidth-- to e<-w lane
+    (-1,0) -> toLane.endCoord.x - fromLane.startCoord.x + laneHalfWidth-- to e<-w lane
     (0,1) -> fromLane.startCoord.y + laneHalfWidth  -- to n->s lane
-    (0,-1) -> toLane.endCoord.y - fromLane.startCoord.y - laneHalfWidth - laneWidth -- to s->n lane
+    (0,-1) -> toLane.endCoord.y - fromLane.startCoord.y + laneHalfWidth -- to s->n lane
     _ -> 0
 
 -- return true if no car.x is in carClearance inverval near p
 entryAtJunctionFree: Lane -> Int -> Bool
 entryAtJunctionFree lane p =
   let
-    carsNear = lane.cars |> List.filter (\car -> car.x > (p - carClearanceHalf) && car.x < (p + carClearanceHalf) )
+    gapBegin = p - carClearance
+    gapEnd = p + carClearance
+    carsNear = lane.cars |> List.filter (\car -> car.x > gapBegin && car.x < gapEnd )
+  in
+    (List.length carsNear)  == 0
+
+entryAtLeftTurnFree: Lane -> Int -> Bool
+entryAtLeftTurnFree lane p =
+  let
+    gapBegin = p - 2* carClearance
+    gapEnd = p + carClearance
+    carsNear = lane.cars |> List.filter (\car -> car.carStatus /= WaitLeftTurn && car.x > gapBegin && car.x < gapEnd )
   in
     (List.length carsNear)  == 0
 
 switchCarsFromTo: Int -> Lane -> Array Lane -> Array Lane
 switchCarsFromTo fromLaneId fromLane allLanes =
   let
-    switchCar = fromLane.cars |> List.filter (\car -> car.canMove && car.nextCarTurn /= Nothing && car.nextCarTurn /= Just Straight ) |> List.head
+    switchCar = fromLane.cars |> List.filter (\car -> car.carStatus == Turning && car.nextCarTurn /= Nothing && car.nextCarTurn /= Just Straight ) |> List.head
   in
     case switchCar of
       Nothing -> allLanes
@@ -56,6 +67,12 @@ switchCarsFromTo fromLaneId fromLane allLanes =
               Just (Left l) -> l
               Just (Right r) -> r
               _ -> -1
+
+          turnTo =
+            case car.nextCarTurn of
+              Just (Left l) -> TurnToLeft
+              _ -> TurnToRight
+
           possibleToLane = -- ! might fail from config error !
             Array.get toLaneId allLanes
         in
@@ -64,21 +81,54 @@ switchCarsFromTo fromLaneId fromLane allLanes =
             Just toLane ->
               let
                 entryPoint = entryAtJunction fromLane toLane
+
                 free = entryAtJunctionFree toLane entryPoint
-                switchedCar = { car | x= entryPoint, nextCarTurn = Nothing }
+
+                incomingLane = -- contraflow
+                  case car.nextCarTurn of
+                    Just (Left l) -> Array.get fromLane.oppositeLane allLanes
+                    _ -> Nothing
+
+                waitForIncoming =
+                  case incomingLane of
+                    Nothing -> False
+                    Just oppositeLane -> not (entryAtLeftTurnFree oppositeLane (oppositeLane.distance - car.x - laneWidth)) -- entryPoint d-car.p
+
               in
-                if free then
-                  allLanes |> Array.set toLaneId (addCarToLane toLane car entryPoint)
+                if (free && not waitForIncoming) then
+                  allLanes |> Array.set toLaneId (addCarToLane toLane car entryPoint turnTo)
                            |> Array.set fromLaneId (removeCarFromLane fromLane car.x)
                 else
-                  allLanes
+                  allLanes |> Array.set fromLaneId (updateWaitingCar fromLane car free waitForIncoming)
 
+updateWaitingCar: Lane -> Car -> Bool -> Bool -> Lane
+updateWaitingCar lane waitingCar free waitForIncoming =
+  let
+    updatedCar =
+      { waitingCar | carStatus =
+                       case (free, waitForIncoming) of
+                         (False, False) -> JamStop
+                         (True, False) -> Turning -- never reached currently
+                         (False, True) -> WaitLeftTurn
+                         (True, True) -> WaitLeftTurn
+      }
+  in
+    { lane
+      | cars = (List.filter (\car -> car.x < waitingCar.x) lane.cars) ++ [updatedCar] ++ (List.filter (\car -> car.x > waitingCar.x) lane.cars)
+    }
 
-addCarToLane: Lane -> Car -> Int -> Lane
-addCarToLane lane car p =
+addCarToLane: Lane -> Car -> Int -> TurnTo -> Lane
+addCarToLane lane car p turnTo =
   let
     switchedCar =
-      { car | nextCarTurn = Nothing, x = p}
+      { car |
+         nextCarTurn = Nothing,
+         x = p,
+         turnAngle =
+           case turnTo of
+             TurnToLeft -> 90
+             TurnToRight -> -90,
+         carStatus = TurningIn}
   in
     { lane
       | cars = (List.filter (\car -> car.x < p) lane.cars) ++ [switchedCar] ++ (List.filter (\car -> car.x > p) lane.cars)

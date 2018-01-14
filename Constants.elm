@@ -14,14 +14,13 @@ carHalfLength: Int
 carHalfLength = carLength // 2
 
 carSpace: Int
-carSpace = 2
+carSpace = 6
 
 carClearance: Int
 carClearance = carLength+carSpace
 
 carClearanceHalf: Int
 carClearanceHalf = carClearance // 2
-
 
 laneWidth: Int
 laneWidth = 20
