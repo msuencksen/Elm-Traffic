@@ -51,7 +51,7 @@ initialModel = { lanes = Array.fromList
                  -- lane 3 West N<-S
                  { cars=[initialCar],
                    direction={dx=0, dy=-1},
-                  lights=Array.fromList [{on=True, p=340-laneHalfWidth, left=Just 1, right=Just 0, straight=True, nextCarTurn=Nothing}],
+                  lights=Array.fromList [{on=True, p=338, left=Just 1, right=Just 0, straight=True, nextCarTurn=Nothing}],
                   startCoord = {x=230, y=0},
                   endCoord = {x=230, y=700},
                   distance = 700,

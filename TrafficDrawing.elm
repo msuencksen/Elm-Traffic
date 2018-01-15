@@ -22,6 +22,60 @@ drawLaneElements lane =
   in
     [laneConcrete]
 
+drawLightElements: Lane -> List (Svg Msg)
+drawLightElements lane =
+  lane.lights |> Array.map (\light -> svgLight light lane.startCoord lane.direction lane.distance ) |> Array.toList |> List.foldr (++) []
+
+svgLight: Light -> Point -> Direction -> Int -> List (Svg Msg)
+svgLight light laneStart dir distance =
+  let
+    lightPos =
+      case (dir.dx, dir.dy) of
+        (1,_) -> { x=laneStart.x + light.p - lightStreetSpacing,
+                   y=laneStart.y + laneWidth }
+        (-1,_) -> { x=laneStart.x + distance - light.p + lightStreetSpacing,
+                    y=laneStart.y - laneWidth }
+        (_,1) -> { x=laneStart.x - 2* laneWidth - lightStreetSpacing ,
+                   y=laneStart.y + light.p - lightHeight - lightStreetSpacing}
+        (_,-1) -> { x=laneStart.x + laneWidth,
+                    y=laneStart.y + distance - light.p + 2* lightStreetSpacing}
+        (_,_) -> { x=0, y=0 }
+
+    lightRotation =
+      case (dir.dx, dir.dy) of
+        (1,_) -> 90
+        (-1,_) -> -90
+        _ -> 0
+
+    rotationTransform = "rotate("++ (toString lightRotation) ++"," ++ (toString (lightPos.x)) ++ "," ++ (toString (lightPos.y)) ++")"
+
+    lightSvgBox = rect [ x (toString lightPos.x),
+              y (toString lightPos.y),
+              Svg.Attributes.width (toString lightWidth),
+              Svg.Attributes.height (toString lightHeight),
+              transform (rotationTransform)
+              ,fill "blue" ] []
+
+    lightRedSvg = circle [ cx (toString (lightPos.x+lightFireCenterBothX)),
+                           cy (toString (lightPos.y+lightFireCenterBothX)),
+                           r (toString lightFireRadius),
+                           transform (rotationTransform), fill (lightFireFill (Red light.on))  ] []
+    lightGreenSvg = circle [ cx (toString (lightPos.x+lightFireCenterBothX)),
+                             cy (toString (lightPos.y+lightFireCenterGreenY)),
+                             r (toString lightFireRadius),
+                             transform (rotationTransform), fill (lightFireFill (Green (not light.on))) ] []
+  in
+    [lightSvgBox, lightRedSvg, lightGreenSvg]
+
+
+lightFireFill: LightFire -> String
+lightFireFill lightfire =
+  case lightfire of
+    Red False -> "#770000"
+    Red True -> "#ff0000"
+    Green False -> "#007700"
+    Green True -> "#00ff00"
+
 -- svgLane
 svgLane: Int -> Int -> Int -> Int -> Svg Msg
 svgLane px py w h =

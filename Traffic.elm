@@ -18,11 +18,16 @@ import TrafficDrawing exposing (..)
 -- Elm Traffic
 --
 
-
 -- called upon start
 init : (Model, Cmd a)
 init =
-  ( {initialModel | svgLanes = Array.map drawLaneElements initialModel.lanes |> Array.foldr (++) []}, Cmd.none)
+  ( initialModel |> initialSetup , Cmd.none)
+
+initialSetup : Model -> Model
+initialSetup model =
+  { model |
+    svgLanes = model.lanes |> Array.map drawLaneElements |> Array.foldr (++) []
+  }
 
 -- update
 update : Msg -> Model -> (Model, Cmd Msg)
@@ -97,7 +102,7 @@ addNewCar (lane,probability) =
         Nothing -> carLength + carSpace
         Just car -> car.x
   in
-    if probability > 0.90 && distance > (carLength + carSpace) then
+    if probability > 0.98 && distance > (carLength + carSpace) then
       { lane | cars = initialCar :: lane.cars}
     else
       lane
@@ -121,7 +126,6 @@ updateModel model =
     --     Just (Left l) -> (car, l)
     --     Just (Right r) -> (car, r)
     -- )
-
 
     laneUpdate = model.lanes |> Array.map checkCarMovement |> processCarLaneSwitch |> Array.map processCarMove
   in
@@ -275,15 +279,15 @@ view model =
         , checkbox Pause "Pause"
         , br [] []
 
-
-
         , div [svgBoxStyle] [
             div [lawnStyle] [],
             div [svgStyle]
             [
               svg [ viewBox "0 0 1000 700", Svg.Attributes.width "1000px" ]
               (
-              model.svgLanes ++
+              model.svgLanes
+              ++ (Array.toList (Array.map drawLightElements model.lanes) |> List.foldr (++) [])
+              ++
               -- Array.map (\lane -> List.map (svgCar lane) lane.cars) model |> Array.foldr (++) [] -- flatmap
               (  model.lanes |> Array.map (\lane -> List.map (svgCarBox lane) lane.cars  |> List.foldr (++) [] ) |> Array.foldr (++) [] )-- flatmap
 

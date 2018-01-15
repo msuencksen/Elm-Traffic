@@ -35,6 +35,9 @@ type alias Light = {
   nextCarTurn: Maybe CarTurn
 }
 
+type LightFire =
+  Red Bool | Green Bool
+
 type alias Lights =
   Array Light
 
@@ -50,7 +53,9 @@ type alias Lane = {
   newCarRandom01: Float
 }
 
+--
 -- Model
+--
 type alias Model = {
   lanes : Array Lane,
   svgLanes : List (Svg Msg),
