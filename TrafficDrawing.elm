@@ -18,9 +18,24 @@ drawLaneElements lane =
         svgLane lane.startCoord.x (lane.startCoord.y-laneHalfWidth) (lane.endCoord.x - lane.startCoord.x) laneWidth
       else
         svgLane (lane.startCoord.x-laneHalfWidth) (lane.startCoord.y) laneWidth (lane.endCoord.y - lane.startCoord.y)
-
   in
     [laneConcrete]
+
+drawLaneBacklog: Lane -> List (Svg Msg)
+drawLaneBacklog lane =
+  let
+    textPoint =
+      case (lane.direction.dx, lane.direction.dy) of
+        (1,_) -> (lane.startCoord.x+15,lane.startCoord.y + laneWidth +15)
+        (-1,_) -> (lane.startCoord.x+lane.distance-15,lane.startCoord.y - laneWidth)
+        (_,1) ->  (lane.startCoord.x-laneWidth - 15,lane.startCoord.y + 15)
+        (_,-1) -> (lane.startCoord.x+laneWidth,lane.startCoord.y+lane.distance - 15)
+        _ -> (0,0)
+  in
+    [Svg.text_ [x (toString (Tuple.first textPoint)), y (toString (Tuple.second textPoint )),
+               fill "red"]
+              [Svg.text (toString lane.carBacklog)]
+    ]
 
 drawLightElements: Lane -> List (Svg Msg)
 drawLightElements lane =

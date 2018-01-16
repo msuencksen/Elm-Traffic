@@ -50,7 +50,8 @@ type alias Lane = {
   distance: Int,
   oppositeLane: Int,
   newCarProbability: Float,
-  newCarRandom01: Float
+  newCarRandom01: Float,
+  carBacklog: Int
 }
 
 --

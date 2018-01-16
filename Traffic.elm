@@ -94,18 +94,28 @@ randomNumbers model =
   in
     laneRandomCar :: laneRandomTurns
 
+-- add possible new car, update backlog
 addNewCar: (Lane,Float) -> Lane
 addNewCar (lane,probability) =
   let
     distance =
       case (List.head lane.cars) of
-        Nothing -> carLength + carSpace
+        Nothing -> infinity
         Just car -> car.x
+    carToAdd =
+      if probability > 0.98 then
+        1
+      else
+        0
   in
-    if probability > 0.98 && distance > (carLength + carSpace) then
-      { lane | cars = initialCar :: lane.cars}
+    if carToAdd > 0 || lane.carBacklog > 0 then
+      if distance < carHalfLength + carSpace then
+         { lane | carBacklog = lane.carBacklog + carToAdd } -- no free space for car
+      else
+        { lane | cars = initialCar :: lane.cars,
+                 carBacklog = lane.carBacklog + carToAdd - 1} -- get from backlog
     else
-      lane
+      lane -- nothing to do
 
 
 switchLightNo: Lane -> Int -> Lane
@@ -285,12 +295,11 @@ view model =
             [
               svg [ viewBox "0 0 1000 700", Svg.Attributes.width "1000px" ]
               (
-              model.svgLanes
-              ++ (Array.toList (Array.map drawLightElements model.lanes) |> List.foldr (++) [])
+              model.svgLanes -- streets
+              ++ (Array.toList (Array.map drawLightElements model.lanes) |> List.foldr (++) []) -- lights
+              ++ (model.lanes |> Array.map drawLaneBacklog |> Array.foldr (++) []) --
               ++
-              -- Array.map (\lane -> List.map (svgCar lane) lane.cars) model |> Array.foldr (++) [] -- flatmap
               (  model.lanes |> Array.map (\lane -> List.map (svgCarBox lane) lane.cars  |> List.foldr (++) [] ) |> Array.foldr (++) [] )-- flatmap
-
               )
             ]
           ]
