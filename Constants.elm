@@ -31,10 +31,10 @@ laneHalfWidth: Int
 laneHalfWidth = laneWidth // 2
 
 lightWidth: Int
-lightWidth = 30
+lightWidth = 14
 
 lightHeight: Int
-lightHeight = 60
+lightHeight = 30
 
 lightSpacing: Int
 lightSpacing = 2

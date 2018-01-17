@@ -12,6 +12,7 @@ import LaneSwitch exposing (..)
 import Types exposing (..)
 import Constants exposing (..)
 import Initial exposing (..)
+import Intersections exposing (..)
 import TrafficDrawing exposing (..)
 
 --
@@ -26,7 +27,8 @@ init =
 initialSetup : Model -> Model
 initialSetup model =
   { model |
-    svgLanes = model.lanes |> Array.map drawLaneElements |> Array.foldr (++) []
+     lanes = model.lanes |> createLights,
+     svgLanes = model.lanes |> Array.map drawLaneElements |> Array.foldr (++) []
   }
 
 -- update
