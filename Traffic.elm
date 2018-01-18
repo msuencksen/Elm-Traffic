@@ -27,8 +27,16 @@ init =
 initialSetup : Model -> Model
 initialSetup model =
   { model |
-     lanes = model.lanes |> createLights,
+     lanes = model.lanes |> createLights |> Array.map createSpawnFlag,
      svgLanes = model.lanes |> Array.map drawLaneElements |> Array.foldr (++) []
+  }
+
+createSpawnFlag : Lane -> Lane
+createSpawnFlag lane =
+  { lane | spawn = (lane.startCoord.x==0 && lane.direction.dx == 1)
+                    || (lane.endCoord.x == cityMapWidth && lane.direction.dx == -1)
+                    || (lane.startCoord.y==0 && lane.direction.dy == 1)
+                   || (lane.endCoord.y== cityMapHeight && lane.direction.dy== -1)
   }
 
 -- update
@@ -105,12 +113,12 @@ addNewCar (lane,probability) =
         Nothing -> infinity
         Just car -> car.x
     carToAdd =
-      if probability > 0.98 then
+      if lane.spawn && probability > 0.98 then
         1
       else
         0
   in
-    if carToAdd > 0 || lane.carBacklog > 0 then
+    if (carToAdd > 0 || lane.carBacklog > 0) then
       if distance < carHalfLength + carSpace then
          { lane | carBacklog = lane.carBacklog + carToAdd } -- no free space for car
       else
@@ -295,7 +303,7 @@ view model =
             div [lawnStyle] [],
             div [svgStyle]
             [
-              svg [ viewBox "0 0 1000 700", Svg.Attributes.width "1000px" ]
+              svg [ viewBox ("0 0 "++(toString cityMapWidth)++" "++ (toString cityMapHeight)), Svg.Attributes.width "700px" ]
               (
               model.svgLanes -- streets
               ++ (Array.toList (Array.map drawLightElements model.lanes) |> List.foldr (++) []) -- lights
@@ -321,7 +329,7 @@ lawnStyle =
    Html.Attributes.style [("position","absolute"),("backgroundColor", "green"),("width", "200px"), ("height","400px")]
 
 svgBoxStyle =
-  Html.Attributes.style [("margin","auto"),("width","1000px"),("height","700px"),("position","relative"),("top","100px"),("backgroundColor", "orange"),("border","1px"),("border-color","white")]
+  Html.Attributes.style [("margin","auto"),("width","700px"),("height","700px"),("position","relative"),("top","100px"),("backgroundColor", "orange"),("border","1px"),("border-color","white")]
 
 svgStyle =
   Html.Attributes.style [("position","absolute")]
