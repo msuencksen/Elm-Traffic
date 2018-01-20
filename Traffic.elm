@@ -13,6 +13,7 @@ import Types exposing (..)
 import Constants exposing (..)
 import Initial exposing (..)
 import Intersections exposing (..)
+import Lights exposing (..)
 import TrafficDrawing exposing (..)
 
 --
@@ -27,8 +28,14 @@ init =
 initialSetup : Model -> Model
 initialSetup model =
   { model |
-     lanes = model.lanes |> createLights |> Array.map createSpawnFlag,
-     svgLanes = model.lanes |> Array.map drawLaneElements |> Array.foldr (++) []
+     lanes = model.lanes
+             |> createLights
+             |> Array.map createSpawnFlag
+             |> findSwitchClusters
+
+     , svgLanes =
+       model.lanes
+       |> Array.map drawLaneElements |> Array.foldr (++) []
   }
 
 createSpawnFlag : Lane -> Lane
@@ -36,7 +43,7 @@ createSpawnFlag lane =
   { lane | spawn = (lane.startCoord.x==0 && lane.direction.dx == 1)
                     || (lane.endCoord.x == cityMapWidth && lane.direction.dx == -1)
                     || (lane.startCoord.y==0 && lane.direction.dy == 1)
-                   || (lane.endCoord.y== cityMapHeight && lane.direction.dy== -1)
+                    || (lane.endCoord.y== cityMapHeight && lane.direction.dy== -1)
   }
 
 -- update
@@ -51,9 +58,7 @@ update msg model =
       else
         (model, Cmd.none)
     SwitchLight laneNo lightsNo ->
-      case Array.get laneNo model.lanes of
-        Nothing -> (model, Cmd.none)
-        Just lane -> ( { model | lanes = Array.set laneNo (switchLightNo lane lightsNo) model.lanes}, Cmd.none)
+      ( { model | lanes = switchLights model.lanes laneNo lightsNo }, Cmd.none)
 
     CarProbability randomList ->
       let
@@ -127,12 +132,43 @@ addNewCar (lane,probability) =
     else
       lane -- nothing to do
 
+switchLights: Array Lane -> Int -> Int -> Array Lane
+switchLights allLanes laneNo lightsNo =
+  case Array.get laneNo allLanes of
+    Nothing -> allLanes
+    Just lane ->
+      case Array.get lightsNo lane.lights of
+        Nothing -> allLanes
+        Just light ->
+          let
+            newLightState = (not light.on) -- toggles off/on
+            thisLightIndex = { laneId=laneNo, lightId = lightsNo}
+          in
+            allLanes |> setLightAtIndex (Just thisLightIndex) newLightState
+                     |> setLightAtIndex light.oppositeLightIndex newLightState
+                     |> setLightAtIndex light.leftLightIndex (not newLightState)
+                     |> setLightAtIndex light.rightLightIndex (not newLightState)
 
-switchLightNo: Lane -> Int -> Lane
-switchLightNo lane lightsNo =
+
+
+-- toggle light defined by LightIndex
+setLightAtIndex: Maybe LightIndex -> Bool -> Array Lane -> Array Lane
+setLightAtIndex maybeLightIndex lightState allLanes =
+  case maybeLightIndex of
+    Nothing -> allLanes
+    Just lightIndex ->
+      case Array.get lightIndex.laneId allLanes of
+        Nothing -> allLanes
+        Just lane ->
+          allLanes |> Array.set lightIndex.laneId (switchLightNo lane lightIndex.lightId lightState) -- update lane with switched light state
+
+-- toggle light's .on field
+switchLightNo: Lane -> Int -> Bool -> Lane
+switchLightNo lane lightsNo state =
   case Array.get lightsNo lane.lights of
     Nothing -> lane
-    Just light -> {lane | lights = Array.set lightsNo { light | on = not light.on } lane.lights } -- toggles light.on
+    Just light -> {lane | lights = Array.set lightsNo { light | on = state } lane.lights }
+    --Just light -> {lane | lights = Array.set lightsNo { light | on = not light.on } lane.lights } -- toggles light.on
 
 
 updateModel: Model -> Model
@@ -303,7 +339,7 @@ view model =
             div [lawnStyle] [],
             div [svgStyle]
             [
-              svg [ viewBox ("0 0 "++(toString cityMapWidth)++" "++ (toString cityMapHeight)), Svg.Attributes.width "700px" ]
+              svg [ viewBox ("0 0 "++(Basics.toString cityMapWidth)++" "++ (Basics.toString cityMapHeight)), Svg.Attributes.width "700px" ]
               (
               model.svgLanes -- streets
               ++ (Array.toList (Array.map drawLightElements model.lanes) |> List.foldr (++) []) -- lights
@@ -315,6 +351,8 @@ view model =
           ]
 
         ]
+
+
 
 -- html checkbox
 checkbox : Msg -> String -> Html Msg

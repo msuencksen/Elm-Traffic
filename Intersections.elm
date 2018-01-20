@@ -10,6 +10,7 @@ createLights: Array Lane -> Array Lane
 createLights allLanes =
     allLanes |> Array.indexedMap (matchLaneAgainstAll allLanes)
 
+-- match one lane against all lanes
 matchLaneAgainstAll: Array Lane -> Int -> Lane -> Lane
 matchLaneAgainstAll allLanes laneId lane =
   let
@@ -17,11 +18,11 @@ matchLaneAgainstAll allLanes laneId lane =
   in
     {lane | lights = trafficLights}
 
-
+-- match lane1 against lane1, maybe generating a light for lane1
 laneIntersect: Int -> Lane -> Int -> Lane -> Maybe Light
 laneIntersect l1id l1 l2id l2 =
   let
-   defaultLight = {on=True, p=0, left=Nothing, right=Nothing, straight=False, nextCarTurn=Nothing}
+   defaultLight = {on=True, p=0, left=Nothing, right=Nothing, straight=False, nextCarTurn=Nothing, leftLightIndex=Nothing, rightLightIndex=Nothing, oppositeLightIndex=Nothing }
    margin = laneHalfWidth
   in
     case (l1.direction.dx, l1.direction.dy, l2.direction.dx, l2.direction.dy) of
@@ -61,7 +62,7 @@ laneIntersect l1id l1 l2id l2 =
         in
           if intersect > 0 && intersect <= l1.distance then
             let
-              light = { defaultLight | straight=False, p = intersect - margin, left=Just l2id, right=Just l2.oppositeLane} -- T junction
+              light = { defaultLight | straight=False, p = intersect - margin, left=Just l2.oppositeLane , right=Just l2id } -- T junction
             in
               if intersect == l2.startCoord.y then
                 Just light

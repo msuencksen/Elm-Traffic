@@ -32,7 +32,10 @@ type alias Light = {
   left: Maybe Int,
   right: Maybe Int,
   straight: Bool,
-  nextCarTurn: Maybe CarTurn
+  nextCarTurn: Maybe CarTurn, -- populate randomly
+  leftLightIndex: Maybe LightIndex,
+  rightLightIndex: Maybe LightIndex,
+  oppositeLightIndex: Maybe LightIndex
 }
 
 type LightFire =
@@ -52,7 +55,12 @@ type alias Lane = {
   newCarProbability: Float,
   newCarRandom01: Float,
   carBacklog: Int,
-  spawn: Bool 
+  spawn: Bool
+}
+
+type alias LightIndex = {
+  laneId : Int,
+  lightId : Int
 }
 
 --
