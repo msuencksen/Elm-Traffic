@@ -77,7 +77,7 @@ laneIntersect l1id l1 l2id l2 =
         in
           if intersect > 0 && intersect <= l1.distance then
             let
-              light = { defaultLight | straight=False, p = intersect - margin, left=Just l2.oppositeLane, right=Just l2id} -- T junction
+              light = { defaultLight | straight=False, p = l1.endCoord.y - intersect - margin, left=Just l2.oppositeLane, right=Just l2id} -- T junction
             in
               if intersect == l2.startCoord.y then
                 Just light

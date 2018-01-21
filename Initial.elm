@@ -23,8 +23,8 @@ initialModel = { lanes = -- rules for lane coordinates: every lane goes from low
                 -- lane 0 north E->W
                  { defaultLane |
                      direction={dx=1, dy=0},
-                     startCoord = {x=0, y=360},
-                     endCoord = {x=700, y=360},
+                     startCoord = {x=0, y=420},
+                     endCoord = {x=700, y=420},
                      distance = 700,
                      oppositeLane = 1,
                      newCarProbability=0.5
@@ -32,8 +32,8 @@ initialModel = { lanes = -- rules for lane coordinates: every lane goes from low
                  -- lane 1 north E<-W
                  { defaultLane |
                     direction={dx=-1, dy=0},
-                    startCoord = {x=0, y=340},
-                    endCoord = {x=700, y=340},
+                    startCoord = {x=0, y=400},
+                    endCoord = {x=700, y=400},
                     distance = 700,
                     oppositeLane = 0
                  },
@@ -57,16 +57,16 @@ initialModel = { lanes = -- rules for lane coordinates: every lane goes from low
                  { defaultLane |
                     direction={dx=0, dy=1},
                     startCoord = {x=410, y=0},
-                    endCoord = {x=410, y=340},
-                    distance = 340,
+                    endCoord = {x=410, y=400},
+                    distance = 400,
                     oppositeLane = 3
                  },
                  -- lane 5 West N<-S
                  { defaultLane |
                     direction={dx=0, dy=-1},
                     startCoord = {x=430, y=0},
-                    endCoord = {x=430, y=340},
-                    distance = 340,
+                    endCoord = {x=430, y=400},
+                    distance = 400,
                     oppositeLane = 2
                  }
                ]
