@@ -5,6 +5,7 @@ import Constants exposing (..)
 
 -- Compute intersections of all laneStart
 
+-- Note: depends for T junctions on laneWidth constants
 
 createLights: Array Lane -> Array Lane
 createLights allLanes =
@@ -29,60 +30,80 @@ laneIntersect l1id l1 l2id l2 =
       (1,0,0,1) ->   -- light for E in E+S
         let
           intersect = l2.startCoord.x - l1.startCoord.x
+          goesStraight = not (intersect == l1.distance) -- offset ?
+          goesLeft = l1.startCoord.y <= l2.endCoord.y + laneWidth && l1.startCoord.y > l2.endCoord.y - l2.distance
+          goesRight = (l2.startCoord.y + l2.distance) > l1.startCoord.y
+          leftTurn =
+            case goesLeft of
+              True -> Just l2.oppositeLane
+              False -> Nothing
+          rightTurn =
+            case goesRight of
+              True -> Just l2id
+              False -> Nothing
         in
           if intersect > 0 && intersect <= l1.distance then
-            let
-              light = { defaultLight | straight=False, p = intersect - margin, right=Just l2id, left=Just l2.oppositeLane} -- T junction
-            in
-              if intersect == l1.distance then
-                Just light
-              else
-                Just { light | straight=True} -- X junction
+            Just { defaultLight | straight=goesStraight, p = intersect - margin, left=leftTurn, right=rightTurn, straight = goesStraight}
           else
            Nothing
 
       (-1,0,0,-1) -> -- light for W in W+N
         let
           intersect = l1.endCoord.x - l2.startCoord.x
+          goesStraight = not (intersect == l2.startCoord.x)
+          goesLeft = (l2.startCoord.y + l2.distance) > l1.startCoord.y
+          goesRight = l1.startCoord.y <= l2.endCoord.y && l1.startCoord.y > l2.endCoord.y - l2.distance
+          leftTurn =
+            case goesLeft of
+              True -> Just l2.oppositeLane
+              False -> Nothing
+          rightTurn =
+            case goesRight of
+              True -> Just l2id
+              False -> Nothing
         in
           if intersect > 0 && intersect <= l1.distance then
-            let
-              light = { defaultLight | straight=False, p = intersect - margin, left=Just l2.oppositeLane, right=Just l2id} -- T junction
-            in
-              if intersect == l2.startCoord.x then
-                Just light
-              else
-                Just { light | straight=True} -- X junction
+            Just { defaultLight | straight=goesStraight, p = intersect - margin, left=leftTurn, right=rightTurn, straight = goesStraight}
           else
            Nothing
 
       (0,1,-1,0) -> -- light for S in SxW
         let
           intersect = l2.startCoord.y - l1.startCoord.y
+          goesStraight = not (intersect == l2.startCoord.y)
+          goesLeft = (l2.startCoord.x + l2.distance) > l1.startCoord.x
+          goesRight = l1.startCoord.x <= l2.endCoord.x && l1.startCoord.x > l2.endCoord.x - l2.distance
+          leftTurn =
+            case goesLeft of
+              True -> Just l2.oppositeLane
+              False -> Nothing
+          rightTurn =
+            case goesRight of
+              True -> Just l2id
+              False -> Nothing
         in
           if intersect > 0 && intersect <= l1.distance then
-            let
-              light = { defaultLight | straight=False, p = intersect - margin, left=Just l2.oppositeLane , right=Just l2id } -- T junction
-            in
-              if intersect == l2.startCoord.y then
-                Just light
-              else
-                Just { light | straight=True} -- X junction
+            Just { defaultLight | straight=goesStraight, p = intersect - margin, left=leftTurn, right=rightTurn, straight = goesStraight}
           else
            Nothing
 
       (0,-1,1,0) -> -- light for N in NxE
         let
           intersect = l2.startCoord.y - l1.startCoord.y
+          goesStraight = not (intersect == l2.startCoord.y)
+          goesLeft = l1.startCoord.x <= l2.endCoord.x && l1.startCoord.x > l2.startCoord.x
+          goesRight = (l2.startCoord.x + l2.distance) > l1.startCoord.x
+          leftTurn =
+            case goesLeft of
+              True -> Just l2.oppositeLane
+              False -> Nothing
+          rightTurn =
+            case goesRight of
+              True -> Just l2id
+              False -> Nothing
         in
           if intersect > 0 && intersect <= l1.distance then
-            let
-              light = { defaultLight | straight=False, p = l1.endCoord.y - intersect - margin, left=Just l2.oppositeLane, right=Just l2id} -- T junction
-            in
-              if intersect == l2.startCoord.y then
-                Just light
-              else
-                Just { light | straight=True} -- X junction
+            Just { defaultLight | straight=goesStraight, p = l1.endCoord.y - intersect - margin, left=leftTurn, right=rightTurn, straight = goesStraight}
           else
            Nothing
 
