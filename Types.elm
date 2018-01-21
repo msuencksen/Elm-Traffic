@@ -4,7 +4,7 @@ import Array exposing (..)
 import Svg exposing (..)
 import Time exposing (..)
 
-type alias Direction = { dx: Int, dy: Int }
+type Direction = East | West | South | North
 
 type CarTurn =
   Left Int | Right Int | Straight

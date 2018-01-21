@@ -26,8 +26,8 @@ laneIntersect l1id l1 l2id l2 =
    defaultLight = {on=True, p=0, left=Nothing, right=Nothing, straight=False, nextCarTurn=Nothing, leftLightIndex=Nothing, rightLightIndex=Nothing, oppositeLightIndex=Nothing }
    margin = laneHalfWidth
   in
-    case (l1.direction.dx, l1.direction.dy, l2.direction.dx, l2.direction.dy) of
-      (1,0,0,1) ->   -- light for E in E+S
+    case (l1.direction, l2.direction) of
+      (East,South) ->   -- light for E in E+S
         let
           intersect = l2.startCoord.x - l1.startCoord.x
           goesStraight = not (intersect == l1.distance) -- offset ?
@@ -47,7 +47,7 @@ laneIntersect l1id l1 l2id l2 =
           else
            Nothing
 
-      (-1,0,0,-1) -> -- light for W in W+N
+      (West,North) -> -- light for W in W+N
         let
           intersect = l1.endCoord.x - l2.startCoord.x
           goesStraight = not (intersect == l2.startCoord.x)
@@ -67,7 +67,7 @@ laneIntersect l1id l1 l2id l2 =
           else
            Nothing
 
-      (0,1,-1,0) -> -- light for S in SxW
+      (South,West) -> -- light for S in SxW
         let
           intersect = l2.startCoord.y - l1.startCoord.y
           goesStraight = not (intersect == l2.startCoord.y)
@@ -87,7 +87,7 @@ laneIntersect l1id l1 l2id l2 =
           else
            Nothing
 
-      (0,-1,1,0) -> -- light for N in NxE
+      (North,East) -> -- light for N in NxE
         let
           intersect = l2.startCoord.y - l1.startCoord.y
           goesStraight = not (intersect == l2.startCoord.y)

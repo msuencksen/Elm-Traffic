@@ -28,12 +28,11 @@ processCarLaneSwitch lanes =
 
 entryAtJunction: Lane -> Lane -> Int
 entryAtJunction fromLane toLane =
-  case (toLane.direction.dx, toLane.direction.dy) of
-    (1,0) -> fromLane.startCoord.x + laneWidth -- to east->west lane
-    (-1,0) -> toLane.endCoord.x - fromLane.startCoord.x + laneHalfWidth-- to e<-w lane
-    (0, 1) -> fromLane.startCoord.y + laneHalfWidth  -- to n->s lane
-    (0,-1) -> toLane.endCoord.y - fromLane.startCoord.y + laneHalfWidth -- to s->n lane
-    _ -> 0
+  case toLane.direction of
+    East -> fromLane.startCoord.x + laneWidth -- to east->west lane
+    West -> toLane.endCoord.x - fromLane.startCoord.x + laneHalfWidth-- to e<-w lane
+    South -> fromLane.startCoord.y + laneHalfWidth  -- to n->s lane
+    North -> toLane.endCoord.y - fromLane.startCoord.y + laneHalfWidth -- to s->n lane
 
 -- return true if no car.x is in carClearance inverval near p
 entryAtJunctionFree: Lane -> Int -> Bool

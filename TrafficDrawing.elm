@@ -15,7 +15,7 @@ drawLaneElements: Lane -> List (Svg Msg)
 drawLaneElements lane =
   let
     laneConcrete =
-      if lane.direction.dx /= 0 then
+      if lane.direction == East || lane.direction == West then
         svgLane lane.startCoord.x (lane.startCoord.y-laneHalfWidth) (lane.endCoord.x - lane.startCoord.x) laneWidth
       else
         svgLane (lane.startCoord.x-laneHalfWidth) (lane.startCoord.y) laneWidth (lane.endCoord.y - lane.startCoord.y)
@@ -26,12 +26,11 @@ drawLaneBacklog: Lane -> List (Svg Msg)
 drawLaneBacklog lane =
   let
     textPoint =
-      case (lane.direction.dx, lane.direction.dy) of
-        (1,_) -> (lane.startCoord.x+15,lane.startCoord.y + laneWidth +15)
-        (-1,_) -> (lane.startCoord.x+lane.distance-15,lane.startCoord.y - laneWidth)
-        (_,1) ->  (lane.startCoord.x-laneWidth - 15,lane.startCoord.y + 15)
-        (_,-1) -> (lane.startCoord.x+laneWidth,lane.startCoord.y+lane.distance - 15)
-        _ -> (0,0)
+      case lane.direction of
+        East -> (lane.startCoord.x+15,lane.startCoord.y + laneWidth +15)
+        West -> (lane.startCoord.x+lane.distance-15,lane.startCoord.y - laneWidth)
+        South ->  (lane.startCoord.x-laneWidth - 15,lane.startCoord.y + 15)
+        North -> (lane.startCoord.x+laneWidth,lane.startCoord.y+lane.distance - 15)
   in
     [Svg.text_ [x (toString (Tuple.first textPoint)), y (toString (Tuple.second textPoint )),
                fill "red"]
@@ -47,21 +46,21 @@ svgLight: Int-> Light -> Int -> Point -> Direction -> Int -> List (Svg Msg)
 svgLight lightId light laneId laneStart dir distance =
   let
     lightPos =
-      case (dir.dx, dir.dy) of
-        (1,_) -> { x=laneStart.x + light.p - lightStreetSpacing,
+      case dir of
+        East -> { x=laneStart.x + light.p - lightStreetSpacing,
                    y=laneStart.y + laneWidth }
-        (-1,_) -> { x=laneStart.x + distance - light.p + lightStreetSpacing,
+        West -> { x=laneStart.x + distance - light.p + lightStreetSpacing,
                     y=laneStart.y - laneWidth }
-        (_,1) -> { x=laneStart.x - 2* laneWidth - lightStreetSpacing ,
+        South -> { x=laneStart.x - 2* laneWidth - lightStreetSpacing ,
                    y=laneStart.y + light.p - lightHeight - lightStreetSpacing}
-        (_,-1) -> { x=laneStart.x + laneWidth,
+        North -> { x=laneStart.x + laneWidth,
                     y=laneStart.y + distance - light.p + 2* lightStreetSpacing}
-        (_,_) -> { x=0, y=0 }
+
 
     lightRotation =
-      case (dir.dx, dir.dy) of
-        (1,_) -> 90
-        (-1,_) -> -90
+      case dir of
+        East -> 90
+        West -> -90
         _ -> 0
 
     rotationTransform = "rotate("++ (toString lightRotation) ++"," ++ (toString (lightPos.x)) ++ "," ++ (toString (lightPos.y)) ++")"
@@ -107,30 +106,33 @@ svgCarBox : Lane -> Car -> List (Svg Msg)
 svgCarBox lane car =
   let
     px =
-      case lane.direction.dx of
-        (1) -> car.x - carHalfLength -- car position on lane going east
-        (-1) -> lane.endCoord.x - car.x - carHalfLength -- car position on lane going west
-        _ -> lane.startCoord.x - carHalfWidth + (turnDeltaCar car lane.direction.dy) -- fixed horizontal position for lane going south or north
+      case lane.direction of
+        East -> car.x - carHalfLength -- car position on lane going east
+        West -> lane.endCoord.x - car.x - carHalfLength -- car position on lane going west
+        _ -> lane.startCoord.x - carHalfWidth  -- fixed horizontal position for lane going south or north
 
     py =
-      case lane.direction.dy of
-        (1) -> car.x - carHalfLength -- position on lane going south
-        (-1) -> lane.endCoord.y - car.x - carHalfLength -- position on lane going north
-        _ -> lane.startCoord.y - carHalfWidth + (turnDeltaCar car lane.direction.dx) -- fixed vertical position for lane going south or north
+      case lane.direction of
+        South -> car.x - carHalfLength -- position on lane going south
+        North -> lane.endCoord.y - car.x - carHalfLength -- position on lane going north
+        _ -> lane.startCoord.y - carHalfWidth  -- fixed vertical position for lane going south or north
 
-    boxWidth =
-      if lane.direction.dx /= 0 then
-        carLength
-      else
-        carWidth
+    boxWidth = carLength
+    boxHeight = carWidth
 
-    boxHeight =
-      if lane.direction.dx /= 0 then
-        carWidth
-      else
-        carLength
+    boxRotationAngle =
+      let
+        laneRotationAngle =
+          case lane.direction of
+            East -> 0
+            West -> 180
+            North -> 90
+            South -> -90
+      in
+        laneRotationAngle + car.turnAngle
+
   in
-    [ svgCar1 px py boxWidth boxHeight car.turnAngle (svgCarColor car.nextCarTurn)
+    [ svgCar1 px py boxWidth boxHeight boxRotationAngle (svgCarColor car.nextCarTurn)
     , Svg.text_ [x (toString px), y (toString py), color "red"] [Svg.text (debugCarStatus car)]
     ]
 
@@ -159,12 +161,6 @@ debugCarCanMove car =
     "|"
 
 
-turnDeltaCar: Car -> Int -> Int
-turnDeltaCar car direction =
-  if car.turnAngle < 0 then
-    (car.turnAngle // carTurnStep) * 1 -- direction
-  else
-    (car.turnAngle // carTurnStep) * 1 -- direction
 
 -- Svg Car
 svgCar1 : Int -> Int -> Int -> Int -> Int -> String -> Svg Msg

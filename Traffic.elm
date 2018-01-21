@@ -40,10 +40,10 @@ initialSetup model =
 
 createSpawnFlag : Lane -> Lane
 createSpawnFlag lane =
-  { lane | spawn = (lane.startCoord.x==0 && lane.direction.dx == 1)
-                    || (lane.endCoord.x == cityMapWidth && lane.direction.dx == -1)
-                    || (lane.startCoord.y==0 && lane.direction.dy == 1)
-                    || (lane.endCoord.y== cityMapHeight && lane.direction.dy== -1)
+  { lane | spawn = (lane.startCoord.x==0 && lane.direction == East)
+                    || (lane.endCoord.x == cityMapWidth && lane.direction == West)
+                    || (lane.startCoord.y==0 && lane.direction == South)
+                    || (lane.endCoord.y== cityMapHeight && lane.direction == North)
   }
 
 -- update
