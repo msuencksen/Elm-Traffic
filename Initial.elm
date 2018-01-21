@@ -2,74 +2,43 @@ module Initial exposing (..)
 import Types exposing (..)
 import Constants exposing (..)
 import Array exposing (..)
+import Setup exposing (..)
 
 initialCar: Car
-initialCar = { x=0,
+initialCar = {
+ x=0,
  canMove = False,
  nextCarTurn=Nothing,
  turnAngle=0,
  distancePredecessor=infinity,
  carStatus = Moving }
 
-defaultLane: Lane
-defaultLane = { cars=[], direction=East, lights=Array.empty, startCoord = {x=0,y=0}, endCoord = {x=0,y=0},
-                distance = 0, oppositeLane=-1, newCarProbability=0.5, newCarRandom01=0, carBacklog =0, spawn = False }
+
+
+initialStreets: Array Street
+initialStreets = Array.fromList
+                [
+                 --
+                 {  streetDirection = NorthSouth,
+                    startCoord = {x=210, y=0},
+                    distance = 700
+                 },
+                  { streetDirection = EastWest,
+                    startCoord = {x=0, y=410},
+                    distance = 700
+                  },
+                  -- northern T junction with EastWest street: y+distance must match an EastWest street with y == y + distance - laneHalfWidth
+                  {  streetDirection = NorthSouth,
+                     startCoord = {x=400, y=0},
+                     distance = 400
+                  }
+                  --
+
+                ]
 
 -- initiales Model
 initialModel : Model
-initialModel = { lanes = -- rules for lane coordinates: every lane goes from lower start to higher end coordinates, i.e. is defined left-to-right, or top-to-bottom
-               Array.fromList
-               [
-                -- lane 0 north E->W
-                 { defaultLane |
-                     direction=East,
-                     startCoord = {x=0, y=420},
-                     endCoord = {x=700, y=420},
-                     distance = 700,
-                     oppositeLane = 1,
-                     newCarProbability=0.5
-                 },
-                 -- lane 1 north E<-W
-                 { defaultLane |
-                    direction=West,
-                    startCoord = {x=0, y=400},
-                    endCoord = {x=700, y=400},
-                    distance = 700,
-                    oppositeLane = 0
-                 },
-                 -- lane 2 West N->S
-                 { defaultLane |
-                    direction=South,
-                    startCoord = {x=210, y=0},
-                    endCoord = {x=210, y=700},
-                    distance = 700,
-                    oppositeLane = 3
-                 },
-                 -- lane 3 West N<-S
-                 { defaultLane |
-                    direction=North,
-                    startCoord = {x=230, y=0},
-                    endCoord = {x=230, y=700},
-                    distance = 700,
-                    oppositeLane = 2
-                 },
-                 -- lane 4 West N->S
-                 { defaultLane |
-                    direction=South,
-                    startCoord = {x=410, y=0},
-                    endCoord = {x=410, y=400},
-                    distance = 400,
-                    oppositeLane = 5
-                 },
-                 -- lane 5 West N<-S
-                 { defaultLane |
-                    direction=North,
-                    startCoord = {x=430, y=0},
-                    endCoord = {x=430, y=400},
-                    distance = 400,
-                    oppositeLane = 4
-                 }
-               ]
+initialModel = { lanes = initialStreets |> Array.foldr addStreetLanes Array.empty
                , svgLanes = []
                , pause = False
              }

@@ -5,6 +5,7 @@ import Svg exposing (..)
 import Time exposing (..)
 
 type Direction = East | West | South | North
+type StreetDirection = EastWest | NorthSouth
 
 type CarTurn =
   Left Int | Right Int | Straight
@@ -43,6 +44,13 @@ type LightFire =
 
 type alias Lights =
   Array Light
+
+type alias Street = {
+  startCoord: Point,
+  distance: Int,
+  streetDirection: StreetDirection
+}
+
 
 type alias Lane = {
   cars: List Car,

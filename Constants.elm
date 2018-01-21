@@ -3,7 +3,7 @@ module Constants exposing (..)
 cityMapWidth: Int
 cityMapWidth = 700
 
-cityMapHeight: Int 
+cityMapHeight: Int
 cityMapHeight = 700
 
 
