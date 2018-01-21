@@ -52,7 +52,7 @@ laneIntersect l1id l1 l2id l2 =
           intersect = l1.endCoord.x - l2.startCoord.x
           goesStraight = not (intersect == l2.startCoord.x)
           goesLeft = (l2.startCoord.y + l2.distance) > l1.startCoord.y
-          goesRight = l1.startCoord.y <= l2.endCoord.y && l1.startCoord.y > l2.endCoord.y - l2.distance
+          goesRight = l1.startCoord.y <= l2.endCoord.y + laneWidth && l1.startCoord.y > l2.endCoord.y - l2.distance
           leftTurn =
             case goesLeft of
               True -> Just l2.oppositeLane
@@ -72,7 +72,7 @@ laneIntersect l1id l1 l2id l2 =
           intersect = l2.startCoord.y - l1.startCoord.y
           goesStraight = not (intersect == l2.startCoord.y)
           goesLeft = (l2.startCoord.x + l2.distance) > l1.startCoord.x
-          goesRight = l1.startCoord.x <= l2.endCoord.x && l1.startCoord.x > l2.endCoord.x - l2.distance
+          goesRight = l1.startCoord.x <= l2.endCoord.x + laneWidth && l1.startCoord.x > l2.endCoord.x - l2.distance
           leftTurn =
             case goesLeft of
               True -> Just l2.oppositeLane
@@ -91,7 +91,7 @@ laneIntersect l1id l1 l2id l2 =
         let
           intersect = l2.startCoord.y - l1.startCoord.y
           goesStraight = not (intersect == l2.startCoord.y)
-          goesLeft = l1.startCoord.x <= l2.endCoord.x && l1.startCoord.x > l2.startCoord.x
+          goesLeft = l1.startCoord.x <= l2.endCoord.x + laneWidth && l1.startCoord.x > l2.startCoord.x
           goesRight = (l2.startCoord.x + l2.distance) > l1.startCoord.x
           leftTurn =
             case goesLeft of
