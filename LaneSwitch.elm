@@ -5,32 +5,33 @@ import Array exposing (..)
 import Array.Extra exposing (..)
 
 --
--- processCarLaneSwitch: Array Lane -> Array Lane
--- processCarLaneSwitch lanes =
---   let
---     switchFromLaneFuncs = Array.indexedMap (\laneId lane -> switchCarsFromTo laneId lane) lanes -- array of function
---   in
---     Array.foldr (\switchFunc allLanes-> switchFunc allLanes) lanes switchFromLaneFuncs
-
 processCarLaneSwitch: Array Lane -> Array Lane
 processCarLaneSwitch lanes =
   let
-    lane0 = Array.get 0 lanes
-    lane1 = Array.get 1 lanes
-    lane2 = Array.get 2 lanes
-    lane3 = Array.get 3 lanes
+    switchFromLaneFuncs = Array.indexedMap (\laneId lane -> switchCarsFromTo laneId lane) lanes -- array of function
   in
-    case (lane0,lane1,lane2,lane3) of
-      (Just l0, Just l1, Just l2, Just l3) ->
-        lanes |> switchCarsFromTo 0 l0 |> switchCarsFromTo 1 l1 |>switchCarsFromTo 2 l2 |> switchCarsFromTo 3 l3
-      _ -> lanes
+    Array.foldr (\switchFunc allLanes-> switchFunc allLanes) lanes switchFromLaneFuncs
+
+-- processCarLaneSwitch: Array Lane -> Array Lane
+-- processCarLaneSwitch lanes =
+--   let
+--     lane0 = Array.get 0 lanes
+--     lane1 = Array.get 1 lanes
+--     lane2 = Array.get 2 lanes
+--     lane3 = Array.get 3 lanes
+--     lane4 = Array.get 4 lanes
+--   in
+--     case (lane0,lane1,lane2,lane3,lane4) of
+--       (Just l0, Just l1, Just l2, Just l3, Just l4) ->
+--         lanes |> switchCarsFromTo 0 l0 |> switchCarsFromTo 1 l1 |>switchCarsFromTo 2 l2 |> switchCarsFromTo 3 l3 |> switchCarsFromTo 4 l4
+--       _ -> lanes
 
 entryAtJunction: Lane -> Lane -> Int
 entryAtJunction fromLane toLane =
   case (toLane.direction.dx, toLane.direction.dy) of
-    (1,0) -> fromLane.startCoord.x + laneHalfWidth -- to east->west lane
+    (1,0) -> fromLane.startCoord.x + laneWidth -- to east->west lane
     (-1,0) -> toLane.endCoord.x - fromLane.startCoord.x + laneHalfWidth-- to e<-w lane
-    (0,1) -> fromLane.startCoord.y + laneHalfWidth  -- to n->s lane
+    (0, 1) -> fromLane.startCoord.y + laneHalfWidth  -- to n->s lane
     (0,-1) -> toLane.endCoord.y - fromLane.startCoord.y + laneHalfWidth -- to s->n lane
     _ -> 0
 
@@ -38,18 +39,18 @@ entryAtJunction fromLane toLane =
 entryAtJunctionFree: Lane -> Int -> Bool
 entryAtJunctionFree lane p =
   let
-    gapBegin = p - carClearance
-    gapEnd = p + carClearance
+    gapBegin = p - 1 -- carClearance
+    gapEnd = p + 1 --carClearance
     carsNear = lane.cars |> List.filter (\car -> car.x > gapBegin && car.x < gapEnd )
   in
     (List.length carsNear)  == 0
 
 entryAtLeftTurnFree: Lane -> Int -> Bool
-entryAtLeftTurnFree lane p =
+entryAtLeftTurnFree oppositeLane p =
   let
-    gapBegin = p - 2* carClearance
-    gapEnd = p + carClearance
-    carsNear = lane.cars |> List.filter (\car -> car.carStatus /= WaitLeftTurn && car.x > gapBegin && car.x < gapEnd )
+    gapBegin = p
+    gapEnd = p + laneWidth
+    carsNear = oppositeLane.cars |> List.filter (\car -> car.carStatus /= WaitLeftTurn && car.x > gapBegin && car.x < gapEnd )
   in
     (List.length carsNear)  == 0
 
@@ -92,7 +93,7 @@ switchCarsFromTo fromLaneId fromLane allLanes =
                 waitForIncoming =
                   case incomingLane of
                     Nothing -> False
-                    Just oppositeLane -> not (entryAtLeftTurnFree oppositeLane (oppositeLane.distance - car.x - laneWidth)) -- entryPoint d-car.p
+                    Just oppositeLane -> not (entryAtLeftTurnFree oppositeLane (oppositeLane.distance - car.x - 2*laneWidth)) -- entryPoint d-car.p
 
               in
                 if (free && not waitForIncoming) then
@@ -108,7 +109,7 @@ updateWaitingCar lane waitingCar free waitForIncoming =
       { waitingCar | carStatus =
                        case (free, waitForIncoming) of
                          (False, False) -> JamStop
-                         (True, False) -> Turning -- never reached currently
+                         (True, False) -> JamStop -- never reached currently
                          (False, True) -> WaitLeftTurn
                          (True, True) -> WaitLeftTurn
       }

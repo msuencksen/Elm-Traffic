@@ -118,7 +118,7 @@ addNewCar (lane,probability) =
         Nothing -> infinity
         Just car -> car.x
     carToAdd =
-      if lane.spawn && probability > 0.98 then
+      if lane.spawn && probability > 0.995 then
         1
       else
         0
@@ -202,11 +202,13 @@ checkCarMovement lane =
 checkCarMove: Direction -> Lights -> Car -> List Car -> List Car
 checkCarMove direction lights car cars =
   let
+    carInFront = List.head cars
+
     abstandCar =
-      case cars of
-        [] -> infinity
-        firstCar :: carList ->
-          firstCar.x-car.x
+      case carInFront of
+        Nothing -> infinity
+        Just carInFront ->
+          carInFront.x - car.x
 
     nextTrafficLight =
       lights |> Array.foldl (\light nextLight -> nearestLight car.x light nextLight) Nothing
@@ -219,10 +221,15 @@ checkCarMove direction lights car cars =
           Just light -> light.p - car.x
 
     carClearLights1 = carLightsDistance > carClearanceHalf -- still away from lights stop
-    carClearLights2 = carLightsDistance < 0 -- passed lights
+    carClearLights2 = carLightsDistance < 0 -- passed nearest light
     carClearLights3 = Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) -- lights are green
 
     lightsClear = (carClearLights1 || carClearLights2 || carClearLights3)
+
+    junctionJammed =
+      case carInFront of
+        Nothing -> False
+        Just carx -> not carClearLights2 && not carClearLights1 && carClearLights3 && (abstandCar <=  carSpace + 2*laneWidth) -- && carx.carStatus /= Moving
 
     -- get a turn decision from random number stored with light
     carTurn =
@@ -237,7 +244,7 @@ checkCarMove direction lights car cars =
         car.nextCarTurn
 
     carCanMove = -- bool
-      carClear1 && lightsClear
+      carClear1 && lightsClear && not junctionJammed
 
     carTurnAngle =
       case car.nextCarTurn of
