@@ -44,13 +44,18 @@ isOppositeLight l1 (_, l2) =
 findRightLight: Array Lane -> Lane -> Int -> Light -> Maybe LightIndex
 findRightLight allLanes lane laneId thisLight =
   let
-    leftLaneId =
-      case thisLight.left of
+    rightLaneId =
+      case thisLight.right of
         Nothing -> -1
-        Just leftLaneIndex -> leftLaneIndex
+        Just rightLaneIndex -> rightLaneIndex
+
+    leftLaneId = -- we need the opposite of the right lane b/c the light is there. But we could not use light.left directly b/c the junction might be a T junction with no left turn.
+       case Array.get rightLaneId allLanes of
+         Nothing -> -1
+         Just rlane -> rlane.oppositeLane
 
     maybeLeftLane =
-       Array.get leftLaneId allLanes
+      Array.get leftLaneId allLanes
   in
     case maybeLeftLane of
       Nothing -> Nothing
@@ -70,10 +75,15 @@ isRightLight thisLaneId oppositeLaneId (l2Id, l2) =
 findLeftLight: Array Lane -> Lane -> Int -> Light -> Maybe LightIndex
 findLeftLight allLanes lane laneId thisLight =
   let
-    rightLaneId =
-      case thisLight.right of
+    leftLaneId =
+      case thisLight.left of
         Nothing -> -1
-        Just rightLaneIndex -> rightLaneIndex
+        Just leftLaneIndex -> leftLaneIndex
+
+    rightLaneId = -- we need the opposite of the left lane b/c the light is there. But we could not use light.right directly b/c the junction might be a T junction with no left turn.
+       case Array.get leftLaneId allLanes of
+         Nothing -> -1
+         Just rlane -> rlane.oppositeLane
 
     maybeRightLane =
        Array.get rightLaneId allLanes
@@ -82,7 +92,7 @@ findLeftLight allLanes lane laneId thisLight =
       Nothing -> Nothing
       Just rightLane ->
         Array.toIndexedList rightLane.lights
-        --|> List.filter (isLeftLight laneId lane.oppositeLane)
+        |> List.filter (isLeftLight laneId lane.oppositeLane)
         |> List.map (\(lightIndex, _)-> { laneId = rightLaneId, lightId=lightIndex })
         |> List.head
 
