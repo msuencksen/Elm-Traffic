@@ -59,7 +59,7 @@ initialModel = { lanes = -- rules for lane coordinates: every lane goes from low
                     startCoord = {x=410, y=0},
                     endCoord = {x=410, y=400},
                     distance = 400,
-                    oppositeLane = 3
+                    oppositeLane = 5
                  },
                  -- lane 5 West N<-S
                  { defaultLane |
@@ -67,7 +67,7 @@ initialModel = { lanes = -- rules for lane coordinates: every lane goes from low
                     startCoord = {x=430, y=0},
                     endCoord = {x=430, y=400},
                     distance = 400,
-                    oppositeLane = 2
+                    oppositeLane = 4
                  }
                ]
                , svgLanes = []
