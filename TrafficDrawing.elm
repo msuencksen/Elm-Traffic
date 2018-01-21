@@ -77,11 +77,15 @@ svgLight lightId light laneId laneStart dir distance =
     lightRedSvg = circle [ cx (toString (lightPos.x+lightFireCenterBothX)),
                            cy (toString (lightPos.y+lightFireCenterBothX)),
                            r (toString lightFireRadius),
-                           transform (rotationTransform), fill (lightFireFill (Red light.on))  ] []
+                           onClick (SwitchLight laneId lightId),
+                           transform (rotationTransform),
+                           fill (lightFireFill (Red light.on))  ] []
     lightGreenSvg = circle [ cx (toString (lightPos.x+lightFireCenterBothX)),
                              cy (toString (lightPos.y+lightFireCenterGreenY)),
                              r (toString lightFireRadius),
-                             transform (rotationTransform), fill (lightFireFill (Green (not light.on))) ] []
+                             onClick (SwitchLight laneId lightId),
+                             transform (rotationTransform),
+                             fill (lightFireFill (Green (not light.on))) ] []
   in
     [lightSvgBox, lightRedSvg, lightGreenSvg]
 
