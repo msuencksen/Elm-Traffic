@@ -1,6 +1,7 @@
 module TrafficDrawing exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
+import Svg.Events exposing (..)
 import Random exposing (..)
 import Time exposing (..)
 import Array exposing (..)
@@ -37,12 +38,13 @@ drawLaneBacklog lane =
               [Svg.text (toString lane.carBacklog)]
     ]
 
-drawLightElements: Lane -> List (Svg Msg)
-drawLightElements lane =
-  lane.lights |> Array.map (\light -> svgLight light lane.startCoord lane.direction lane.distance ) |> Array.toList |> List.foldr (++) []
+-- called from html view
+drawLightElements: Int -> Lane -> List (Svg Msg)
+drawLightElements laneId lane =
+  lane.lights |> Array.indexedMap (\lightNo light -> svgLight lightNo light laneId lane.startCoord lane.direction lane.distance ) |> Array.toList |> List.foldr (++) []
 
-svgLight: Light -> Point -> Direction -> Int -> List (Svg Msg)
-svgLight light laneStart dir distance =
+svgLight: Int-> Light -> Int -> Point -> Direction -> Int -> List (Svg Msg)
+svgLight lightId light laneId laneStart dir distance =
   let
     lightPos =
       case (dir.dx, dir.dy) of
@@ -68,8 +70,9 @@ svgLight light laneStart dir distance =
               y (toString lightPos.y),
               Svg.Attributes.width (toString lightWidth),
               Svg.Attributes.height (toString lightHeight),
-              transform (rotationTransform)
-              ,fill "blue" ] []
+              transform (rotationTransform),
+              onClick (SwitchLight laneId lightId),
+              fill "blue" ] []
 
     lightRedSvg = circle [ cx (toString (lightPos.x+lightFireCenterBothX)),
                            cy (toString (lightPos.y+lightFireCenterBothX)),

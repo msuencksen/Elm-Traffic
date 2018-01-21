@@ -342,7 +342,7 @@ view model =
               svg [ viewBox ("0 0 "++(Basics.toString cityMapWidth)++" "++ (Basics.toString cityMapHeight)), Svg.Attributes.width "700px" ]
               (
               model.svgLanes -- streets
-              ++ (Array.toList (Array.map drawLightElements model.lanes) |> List.foldr (++) []) -- lights
+              ++ (Array.toList (Array.indexedMap drawLightElements model.lanes) |> List.foldr (++) []) -- lights
               ++ (model.lanes |> Array.map drawLaneBacklog |> Array.foldr (++) []) --
               ++
               (  model.lanes |> Array.map (\lane -> List.map (svgCarBox lane) lane.cars  |> List.foldr (++) [] ) |> Array.foldr (++) [] )-- flatmap
