@@ -1,10 +1,10 @@
 module Constants exposing (..)
 
 cityMapWidth: Int
-cityMapWidth = 700
+cityMapWidth = 1600
 
 cityMapHeight: Int
-cityMapHeight = 700
+cityMapHeight = 800
 
 
 carLength: Int

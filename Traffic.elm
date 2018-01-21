@@ -346,11 +346,11 @@ view model =
             div [lawnStyle] [],
             div [svgStyle]
             [
-              svg [ viewBox ("0 0 "++(Basics.toString cityMapWidth)++" "++ (Basics.toString cityMapHeight)), Svg.Attributes.width "700px" ]
+              svg [ viewBox ("0 0 "++(Basics.toString cityMapWidth)++" "++ (Basics.toString cityMapHeight)), Svg.Attributes.width ((toString cityMapWidth)++"px"),  Svg.Attributes.height ((toString cityMapHeight)++"px")]
               (
               model.svgLanes -- streets
               ++ (Array.toList (Array.indexedMap drawLightElements model.lanes) |> List.foldr (++) []) -- lights
-              ++ (model.lanes |> Array.map drawLaneBacklog |> Array.foldr (++) []) --
+              ++ (model.lanes |> Array.filter (\lane -> lane.spawn) |> Array.map drawLaneBacklog |> Array.foldr (++) []) --
               ++
               (  model.lanes |> Array.map (\lane -> List.map (svgCarBox lane) lane.cars  |> List.foldr (++) [] ) |> Array.foldr (++) [] )-- flatmap
               )
@@ -374,7 +374,7 @@ lawnStyle =
    Html.Attributes.style [("position","absolute"),("backgroundColor", "green"),("width", "200px"), ("height","400px")]
 
 svgBoxStyle =
-  Html.Attributes.style [("margin","auto"),("width","700px"),("height","700px"),("position","relative"),("top","100px"),("backgroundColor", "orange"),("border","1px"),("border-color","white")]
+  Html.Attributes.style [("margin","auto"),("width",(toString cityMapWidth)++"px"),("height",(toString cityMapHeight)++"px"),("position","relative"),("top","20px"),("backgroundColor", "orange"),("border","1px"),("border-color","white")]
 
 svgStyle =
   Html.Attributes.style [("position","absolute")]
