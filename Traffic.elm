@@ -118,7 +118,7 @@ addNewCar (lane,probability) =
         Nothing -> infinity
         Just car -> car.x
     carToAdd =
-      if lane.spawn && probability > 0.995 then
+      if lane.spawn && probability > 0.991 then
         1
       else
         0

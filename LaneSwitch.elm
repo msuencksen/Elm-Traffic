@@ -39,8 +39,8 @@ entryAtJunction fromLane toLane =
 entryAtJunctionFree: Lane -> Int -> Bool
 entryAtJunctionFree lane p =
   let
-    gapBegin = p - 1 -- carClearance
-    gapEnd = p + 1 --carClearance
+    gapBegin = p - carClearance
+    gapEnd = p + carClearance
     carsNear = lane.cars |> List.filter (\car -> car.x > gapBegin && car.x < gapEnd )
   in
     (List.length carsNear)  == 0
