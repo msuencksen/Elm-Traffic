@@ -23,31 +23,36 @@ initialStreets = Array.fromList
                     startCoord = {x=210, y=0},
                     distance = 1600
                  },
-                  -- { streetDirection = EastWest,
-                  --   startCoord = {x=0, y=410},
-                  --   distance = 1600
-                  -- },
+                  { streetDirection = EastWest,
+                    startCoord = {x=0, y=410},
+                    distance = 1600
+                  },
                   { streetDirection = EastWest,
                     startCoord = {x=0, y=210},
                     distance = 200
-                  }
-                  -- { streetDirection = EastWest,
-                  --   startCoord = {x=0, y=610},
-                  --   distance = 1600
-                  -- },
+                  },
+                  { streetDirection = EastWest,
+                    startCoord = {x=0, y=610},
+                    distance = 1600
+                  },
                   -- northern T junction with EastWest street: y+distance must match an EastWest street with y == y + distance - laneHalfWidth
-                  -- {  streetDirection = NorthSouth,
-                  --    startCoord = {x=500, y=0},
-                  --    distance = 400
-                  -- },
-                  -- {  streetDirection = NorthSouth,
-                  --    startCoord = {x=800, y=0},
-                  --    distance = 400
-                  -- }
-                  -- {  streetDirection = NorthSouth,
-                  --    startCoord = {x=1400, y=0},
-                  --    distance = 800
-                  -- }
+                  {  streetDirection = NorthSouth,
+                     startCoord = {x=500, y=0},
+                     distance = 400
+                  },
+                  {  streetDirection = NorthSouth,
+                     startCoord = {x=800, y=0},
+                     distance = 400
+                  },
+                  {  streetDirection = NorthSouth,
+                     startCoord = {x=1400, y=0},
+                     distance = 800
+                  }
+                  ,
+                  {  streetDirection = NorthSouth,
+                     startCoord = {x=500, y=600},
+                     distance = 200
+                  }
                   --
 
                 ]
