@@ -11,6 +11,16 @@ import Types exposing (..)
 import Constants exposing (..)
 
 
+drawStreet: Street -> List (Svg Msg)
+drawStreet street =
+  let
+    concrete =
+      case street.streetDirection of
+        EastWest -> svgLane street.startCoord.x (street.startCoord.y-laneWidth) street.distance (2*laneWidth)
+        NorthSouth -> svgLane (street.startCoord.x-laneWidth) street.startCoord.y (2*laneWidth) street.distance
+   in
+     [concrete]
+
 drawLaneElements: Lane -> List (Svg Msg)
 drawLaneElements lane =
   let
@@ -22,18 +32,32 @@ drawLaneElements lane =
   in
     [laneConcrete]
 
+svgLane: Int -> Int -> Int -> Int -> Svg Msg
+svgLane px py w h =
+  rect [ x (toString px), y (toString py), Svg.Attributes.width (toString w), Svg.Attributes.height (toString h), fill "#505050" ] []
+
+
 drawLaneBacklog: Lane -> List (Svg Msg)
 drawLaneBacklog lane =
   let
+    fontSize =
+      if lane.carBacklog < 5 then
+        "12px"
+      else
+        if lane.carBacklog > 15 then
+          "48px"
+        else
+          "24px"
+
     textPoint =
       case lane.direction of
         East -> (lane.startCoord.x+15,lane.startCoord.y + laneWidth +15)
-        West -> (lane.startCoord.x+lane.distance-15,lane.startCoord.y - laneWidth)
-        South ->  (lane.startCoord.x-laneWidth - 15,lane.startCoord.y + 15)
+        West -> (lane.startCoord.x+lane.distance-25,lane.startCoord.y - laneWidth)
+        South ->  (lane.startCoord.x-laneWidth - 25,lane.startCoord.y + 25)
         North -> (lane.startCoord.x+laneWidth,lane.startCoord.y+lane.distance - 15)
   in
     [Svg.text_ [x (toString (Tuple.first textPoint)), y (toString (Tuple.second textPoint )),
-               fill "red"]
+               fill "red", Svg.Attributes.fontSize fontSize]
               [Svg.text (toString lane.carBacklog)]
     ]
 
@@ -47,21 +71,22 @@ svgLight lightId light laneId laneStart dir distance =
   let
     lightPos =
       case dir of
-        East -> { x=laneStart.x + light.p - lightStreetSpacing,
+        East -> { x=laneStart.x + light.p ,
                    y=laneStart.y + laneWidth }
-        West -> { x=laneStart.x + distance - light.p + lightStreetSpacing,
+        West -> { x=laneStart.x + distance - light.p ,
                     y=laneStart.y - laneWidth }
-        South -> { x=laneStart.x - 2* laneWidth - lightStreetSpacing ,
-                   y=laneStart.y + light.p - lightHeight - lightStreetSpacing}
+        South -> { x=laneStart.x - laneWidth ,
+                   y=laneStart.y + light.p - lightStreetSpacing}
         North -> { x=laneStart.x + laneWidth,
-                    y=laneStart.y + distance - light.p + 2* lightStreetSpacing}
+                    y=laneStart.y + distance - light.p }-- + 2* lightStreetSpacing}
 
 
     lightRotation =
       case dir of
         East -> 90
         West -> -90
-        _ -> 0
+        South -> 180
+        North -> 0
 
     rotationTransform = "rotate("++ (toString lightRotation) ++"," ++ (toString (lightPos.x)) ++ "," ++ (toString (lightPos.y)) ++")"
 
@@ -71,7 +96,7 @@ svgLight lightId light laneId laneStart dir distance =
               Svg.Attributes.height (toString lightHeight),
               transform (rotationTransform),
               onClick (SwitchLight laneId lightId),
-              fill "blue" ] []
+              fill "#303030" ] []
 
     lightRedSvg = circle [ cx (toString (lightPos.x+lightFireCenterBothX)),
                            cy (toString (lightPos.y+lightFireCenterBothX)),
@@ -98,10 +123,6 @@ lightFireFill lightfire =
     Green True -> "#00ff00"
 
 -- svgLane
-svgLane: Int -> Int -> Int -> Int -> Svg Msg
-svgLane px py w h =
-  rect [ x (toString px), y (toString py), Svg.Attributes.width (toString w), Svg.Attributes.height (toString h), fill "#505050" ] []
-
 svgCarBox : Lane -> Car -> List (Svg Msg)
 svgCarBox lane car =
   let
@@ -109,12 +130,12 @@ svgCarBox lane car =
       case lane.direction of
         East -> car.x - carHalfLength -- car position on lane going east
         West -> lane.endCoord.x - car.x - carHalfLength -- car position on lane going west
-        _ -> lane.startCoord.x - carHalfWidth  -- fixed horizontal position for lane going south or north
+        _ -> 2+ lane.startCoord.x - laneHalfWidth  -- fixed horizontal position for lane going south or north
 
     py =
       case lane.direction of
-        South -> car.x - carHalfLength -- position on lane going south
-        North -> lane.endCoord.y - car.x - carHalfLength -- position on lane going north
+        South -> car.x - laneHalfWidth -- position on lane going south
+        North -> lane.endCoord.y - car.x - laneHalfWidth -- position on lane going north
         _ -> lane.startCoord.y - carHalfWidth  -- fixed vertical position for lane going south or north
 
     boxWidth = carLength
@@ -133,7 +154,7 @@ svgCarBox lane car =
 
   in
     [ svgCar1 px py boxWidth boxHeight boxRotationAngle (svgCarColor car.nextCarTurn)
-    , Svg.text_ [x (toString px), y (toString py), color "red"] [Svg.text (debugCarStatus car)]
+    , Svg.text_ [x (toString px), y (toString py), color "red"] [] -- [Svg.text (debugCarStatus car)]
     ]
 
 debugCarStatus: Car -> String
@@ -155,7 +176,7 @@ debugCarDistance car =
 
 debugCarCanMove: Car -> String
 debugCarCanMove car =
-  if car.canMove then
+  if car.canMove > 0 then
     ">"
   else
     "|"
@@ -165,24 +186,20 @@ debugCarCanMove car =
 -- Svg Car
 svgCar1 : Int -> Int -> Int -> Int -> Int -> String -> Svg Msg
 svgCar1 px py w h rotationAngle carColorStr =
-    rect [ x (toString px),
-           y (toString py),
-           Svg.Attributes.width (toString w),
-           Svg.Attributes.height (toString h),
-           transform ("rotate("++ (toString rotationAngle) ++"," ++ (toString (px+ w//2)) ++ "," ++ (toString (py+h//2)) ++")" )
-           ,fill carColorStr ] []
+    let
+      transformAttribute =
+        if rotationAngle /= 0 then
+          [ transform ("rotate("++ (toString rotationAngle) ++"," ++ (toString (px + w//2)) ++ "," ++ (toString (py+h//2)) ++")" ) ]
+        else
+          []
+    in
+      rect ([ x (toString px),
+             y (toString py),
+             Svg.Attributes.width (toString w),
+             Svg.Attributes.height (toString h),
+             --transform ("rotate("++ (toString rotationAngle) ++"," ++ (toString (px+ w//2)) ++ "," ++ (toString (py+h//2)) ++")" )
+             fill carColorStr ] ++ transformAttribute) []
 
-svgCar2 : Int -> Int -> Int -> Int -> Int -> String -> Svg Msg
-svgCar2 px py w h rotationAngle carColorStr =
-   polygon [ Svg.Attributes.points ((coord px py) ++ (coord (px+w) py) ++ (coord (px+w) (py+h)) ++ (coord px (py+h)) ),
-          transform ("rotate("++ (toString rotationAngle) ++"," ++ (toString (px+ carHalfLength)) ++ "," ++ (toString (py+carHalfWidth)) ++")" )
-           ,fill carColorStr] [
-                               rect [ x "0",
-                                      y "0",
-                                      Svg.Attributes.width ("2"),
-                                      Svg.Attributes.height ("22"),
-                                      fill "red" ] []
-                              ]
 
 coord: Int -> Int -> String
 coord x y =

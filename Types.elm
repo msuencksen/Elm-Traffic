@@ -19,7 +19,7 @@ type CarStatus =
 type alias Car = {
   x: Int,
   distancePredecessor: Int,
-  canMove: Bool,
+  canMove: Int,
   nextCarTurn: Maybe CarTurn,
   turnAngle: Int,
   carStatus: CarStatus
@@ -77,7 +77,8 @@ type alias LightIndex = {
 type alias Model = {
   lanes : Array Lane,
   svgLanes : List (Svg Msg),
-  pause: Bool
+  pause: Bool,
+  gameOver: Bool
   }
 
 -- updates

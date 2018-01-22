@@ -28,6 +28,9 @@ carClearance = carLength+carSpace
 carClearanceHalf: Int
 carClearanceHalf = carClearance // 2
 
+carSpeedClear: Int -- distance clear for speeding up
+carSpeedClear = 3 * carClearance
+
 laneWidth: Int
 laneWidth = 20
 
@@ -37,13 +40,13 @@ laneHalfWidth: Int
 laneHalfWidth = laneWidth // 2
 
 lightWidth: Int
-lightWidth = 14
+lightWidth = 18
 
 lightHeight: Int
-lightHeight = 30
+lightHeight = 32
 
 lightSpacing: Int
-lightSpacing = 2
+lightSpacing = 3
 
 lightFireRadius: Int
 lightFireRadius = (lightWidth - 2*lightSpacing) // 2
@@ -54,7 +57,15 @@ lightFireCenterBothX = (lightFireRadius + lightSpacing)
 lightFireCenterGreenY: Int
 lightFireCenterGreenY = (3*lightFireRadius + 2*lightSpacing)
 
+lightStreetSpacing: Int
 lightStreetSpacing = laneHalfWidth
+
+backlogLimit: Int -- limit for one lane
+backlogLimit = 2
+
+lanesOverLimit: Int -- maximum lane count over limit before "game over"
+lanesOverLimit = 3
+
 
 infinity: Int
 infinity = 9999

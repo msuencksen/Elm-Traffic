@@ -7,18 +7,17 @@ import Setup exposing (..)
 initialCar: Car
 initialCar = {
  x=0,
- canMove = False,
+ canMove = 0,
  nextCarTurn=Nothing,
  turnAngle=0,
  distancePredecessor=infinity,
- carStatus = Moving }
-
-
+ carStatus = Moving
+ }
 
 initialStreets: Array Street
 initialStreets = Array.fromList
                 [
-                 --
+
                  {  streetDirection = NorthSouth,
                     startCoord = {x=210, y=0},
                     distance = 1600
@@ -35,8 +34,8 @@ initialStreets = Array.fromList
                     startCoord = {x=0, y=610},
                     distance = 1600
                   },
-                  -- northern T junction with EastWest street: y+distance must match an EastWest street with y == y + distance - laneHalfWidth
-                  {  streetDirection = NorthSouth,
+
+                  {  streetDirection = NorthSouth, -- northern T junction with EastWest street: y+distance must match an EastWest street with y == y + distance - laneHalfWidth
                      startCoord = {x=500, y=0},
                      distance = 400
                   },
@@ -50,8 +49,8 @@ initialStreets = Array.fromList
                   }
                   ,
                   {  streetDirection = NorthSouth,
-                     startCoord = {x=500, y=600},
-                     distance = 200
+                     startCoord = {x=500, y=620},
+                     distance = 180
                   }
                   --
 
@@ -62,4 +61,6 @@ initialModel : Model
 initialModel = { lanes = initialStreets |> Array.foldr addStreetLanes Array.empty
                , svgLanes = []
                , pause = False
+               , gameOver = False
+
              }

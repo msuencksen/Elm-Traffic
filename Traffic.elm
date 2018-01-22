@@ -34,8 +34,9 @@ initialSetup model =
              |> findSwitchClusters
 
      , svgLanes =
-       model.lanes
-       |> Array.map drawLaneElements |> Array.foldr (++) []
+       initialStreets |> Array.map drawStreet |> Array.foldr (++) []
+       -- model.lanes
+       -- |> Array.map drawLaneElements |> Array.foldr (++) []
   }
 
 createSpawnFlag : Lane -> Lane
@@ -173,19 +174,11 @@ switchLightNo lane lightsNo state =
 
 updateModel: Model -> Model
 updateModel model =
-  let
-    turningCars = List.filter (\car -> car.nextCarTurn /= Nothing && car.nextCarTurn /= Just Straight)
-    -- carsToLane = turningCars |> List.map (\car ->
-    --   case car.nextCarTurn of
-    --     Nothing -> (car, -1)
-    --     Just Straight -> (car, -1)
-    --     Just (Left l) -> (car, l)
-    --     Just (Right r) -> (car, r)
-    -- )
-
-    laneUpdate = model.lanes |> Array.map checkCarMovement |> processCarLaneSwitch |> Array.map processCarMove
-  in
-    {model | lanes = laneUpdate}
+  { model |
+      lanes = model.lanes |> Array.map checkCarMovement |> processCarLaneSwitch |> Array.map processCarMove,
+      gameOver = model.lanes |> checkBackLog backlogLimit lanesOverLimit,
+      pause = model.pause || model.gameOver
+  }
 
 
 -- check car movement:
@@ -221,7 +214,7 @@ checkCarMove direction lights car cars =
           Just light -> light.p - car.x
 
     carClearLights1 = carLightsDistance > carClearanceHalf -- still away from lights stop
-    carClearLights2 = carLightsDistance < 0 -- passed nearest light
+    carClearLights2 = carLightsDistance < carClearanceHalf -- passed nearest light "yellow"
     carClearLights3 = Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) -- lights are green
 
     lightsClear = (carClearLights1 || carClearLights2 || carClearLights3)
@@ -244,7 +237,14 @@ checkCarMove direction lights car cars =
         car.nextCarTurn
 
     carCanMove = -- bool
-      carClear1 && lightsClear && not junctionJammed
+      if carClear1 && lightsClear && not junctionJammed then
+        if abstandCar > carSpeedClear && car.carStatus == Moving && (carLightsDistance > 2*carLength || carClearLights3) then -- && carLightsDistance > carSpeedClear then
+          2
+        else
+          1
+      else
+        0
+
 
     carTurnAngle =
       case car.nextCarTurn of
@@ -268,11 +268,14 @@ checkCarMove direction lights car cars =
     movedCar =
       { car |
          distancePredecessor = abstandCar,
-         canMove = carCanMove && not isTurning,
+         canMove =
+           case not isTurning of
+             True -> carCanMove
+             False -> 0 ,
          nextCarTurn = carTurn,
          carStatus =
            if not isTurning then
-             case (carCanMove, lightsClear) of
+             case (carCanMove > 0, lightsClear) of
                (False, False) -> LightsStop
                (True, False) -> LightsStop
                (False, True) -> JamStop
@@ -313,15 +316,21 @@ processCarMove lane =
 
 moveCar: Car -> Car
 moveCar car =
-  case car.canMove of
+  case car.canMove > 0 of
     False -> car
     True -> { car |
-              x = car.x+1,
+              x = car.x + car.canMove,
               nextCarTurn = Nothing,
               carStatus = Moving
             }
 
-
+-- Returns True for "game over". Happens with more than "maxLanes" over "maxBackLog"
+checkBackLog: Int -> Int -> Array Lane -> Bool
+checkBackLog maxBackLog maxLanes lanes  =
+  let
+    lanesOverLimit = lanes |> Array.filter (\lane -> lane.carBacklog > maxBackLog) |> Array.length
+  in
+    lanesOverLimit > maxLanes
 
 -- autoplay timer
 subscriptions : Model -> Sub Msg
@@ -333,28 +342,33 @@ view : Model -> Html Msg
 view model =
 
         div [bodyStyle]
-        [ h4 [] [Html.text "ElmTown 9e"]
-        , button [ onClick (SwitchLight 0 0) ] [ Html.text "LightsW>E" ]
-        , button [ onClick (SwitchLight 1 0) ] [ Html.text "LightsE>W" ]
-        , button [ onClick (SwitchLight 2 0) ] [ Html.text "LightsN>S" ]
-        , button [ onClick (SwitchLight 3 0) ] [ Html.text "LightsS>N" ]
-        , button [ onClick Reset ] [ Html.text "Reset" ]
-        , checkbox Pause "Pause"
-        , br [] []
+        [ h2 [floatLeftStyle] [Html.text "Some Traffic on Elm Street : "]
+          , if model.gameOver then
+              h2 [floatLeftStyle, redColorStyle] [Html.text " GAME OVER"]
+            else
+              h2 [floatLeftStyle] [Html.text " Switch lights!"]
 
-        , div [svgBoxStyle] [
-            div [lawnStyle] [],
-            div [svgStyle]
-            [
-              svg [ viewBox ("0 0 "++(Basics.toString cityMapWidth)++" "++ (Basics.toString cityMapHeight)), Svg.Attributes.width ((toString cityMapWidth)++"px"),  Svg.Attributes.height ((toString cityMapHeight)++"px")]
-              (
-              model.svgLanes -- streets
-              ++ (Array.toList (Array.indexedMap drawLightElements model.lanes) |> List.foldr (++) []) -- lights
-              ++ (model.lanes |> Array.filter (\lane -> lane.spawn) |> Array.map drawLaneBacklog |> Array.foldr (++) []) --
-              ++
-              (  model.lanes |> Array.map (\lane -> List.map (svgCarBox lane) lane.cars  |> List.foldr (++) [] ) |> Array.foldr (++) [] )-- flatmap
-              )
-            ]
+          , button [ onClick Reset, floatRightStyle] [ Html.text "Reset" ]
+            , br [] []
+            , br [] []
+          , checkbox Pause "Pause"
+          
+          , br [clearStyle] []
+
+
+          , div [svgBoxStyle] [
+              div [lawnStyle] [],
+              div [svgStyle]
+              [
+                svg [ viewBox ("0 0 "++(Basics.toString cityMapWidth)++" "++ (Basics.toString cityMapHeight)), Svg.Attributes.width ((toString cityMapWidth)++"px"),  Svg.Attributes.height ((toString cityMapHeight)++"px")]
+                (
+                model.svgLanes -- streets
+                ++ (Array.toList (Array.indexedMap drawLightElements model.lanes) |> List.foldr (++) []) -- lights
+                ++ (model.lanes |> Array.filter (\lane -> lane.spawn) |> Array.map drawLaneBacklog |> Array.foldr (++) []) --
+                ++
+                (  model.lanes |> Array.map (\lane -> List.map (svgCarBox lane) lane.cars  |> List.foldr (++) [] ) |> Array.foldr (++) [] )-- flatmap
+                )
+              ]
           ]
 
         ]
@@ -364,7 +378,7 @@ view model =
 -- html checkbox
 checkbox : Msg -> String -> Html Msg
 checkbox msg title =
-    label [] [ input [ Html.Attributes.type_ "checkbox", onClick msg ] [], Html.text title ]
+    label [floatRightStyle] [ input [ Html.Attributes.type_ "checkbox", onClick msg ] [], Html.text title ]
 
 
 bodyStyle =
@@ -379,6 +393,17 @@ svgBoxStyle =
 svgStyle =
   Html.Attributes.style [("position","absolute")]
 
+redColorStyle =
+  Html.Attributes.style [("color","red")]
+
+floatLeftStyle =
+    Html.Attributes.style [("float","left")]
+
+floatRightStyle =
+  Html.Attributes.style [("float","right")]
+
+clearStyle =
+  Html.Attributes.style [("clear","both")]
 
 -- main program
 main =
