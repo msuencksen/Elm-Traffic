@@ -2,7 +2,10 @@ module Initial exposing (..)
 import Types exposing (..)
 import Constants exposing (..)
 import Array exposing (..)
-import Setup exposing (..)
+import Setup.Lanes exposing (..)
+import Setup.Intersections exposing (..)
+import Setup.LightCircuits exposing (..)
+import Drawing.Lanes exposing (..)
 
 initialCar: Car
 initialCar = {
@@ -36,7 +39,7 @@ initialStreets = Array.fromList
                     distance = cityMapWidth
                   },
 
-                  {  streetDirection = NorthSouth, -- northern T junction with EastWest street: y+distance must match an EastWest street with y == y + distance - laneHalfWidth
+                  {  streetDirection = NorthSouth,
                      startCoord = {x=500, y=0},
                      distance = 400
                   },
@@ -61,11 +64,24 @@ initialStreets = Array.fromList
 
                 ]
 
--- initiales Model
+-- initial model
 initialModel : Model
-initialModel = { lanes = initialStreets |> Array.foldr addStreetLanes Array.empty
+initialModel = { lanes = initialStreets |> Array.foldr Setup.Lanes.addStreetLanes Array.empty
                , svgLanes = []
                , pause = False
                , gameOver = False
 
              }
+
+-- initial setup
+initialSetup : Model -> Model
+initialSetup model =
+ { model |
+    lanes = model.lanes
+            |> Setup.Intersections.createLights -- create traffic lights
+            |> Array.map Setup.Lanes.createSpawnFlag -- set car spawning flag
+            |> Setup.LightCircuits.findJunctionLights -- connect junction traffic lights
+
+    , svgLanes =
+      initialStreets |> Array.map Drawing.Lanes.drawStreet |> Array.foldr (++) [] -- pre-compute the svg street background
+ }

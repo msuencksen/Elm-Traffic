@@ -1,12 +1,11 @@
-module Intersections exposing (..)
+module Setup.Intersections exposing (..)
 import Array exposing (..)
 import Types exposing (..)
 import Constants exposing (..)
 
--- Compute intersections of all laneStart
+-- This module computes the intersections of all lanes.
 
--- Note: depends for T junctions on laneWidth constants
-
+-- Each intersection is a junction represented by a traffic light sitting on a point p of the lane (relative to lane direction).
 createLights: Array Lane -> Array Lane
 createLights allLanes =
     allLanes |> Array.indexedMap (matchLaneAgainstAll allLanes)

@@ -1,11 +1,15 @@
-module Lights exposing (findSwitchClusters)
+module Setup.LightCircuits exposing (findJunctionLights)
 import Array exposing (..)
 import Types exposing (..)
 import Constants exposing (..)
 
+-- Every switch of a traffic light must automatically switch other lights at the same junction.
+-- This module finds connected lights, populating the following light record fields:
+-- leftLightIndex, rightLightIndex, oppositeLightIndex (all optional)
 
-findSwitchClusters: Array Lane -> Array Lane
-findSwitchClusters allLanes =
+-- find light clusters which are switched together
+findJunctionLights: Array Lane -> Array Lane
+findJunctionLights allLanes =
   allLanes |> Array.indexedMap (updateLaneLights allLanes)
 
 updateLaneLights: Array Lane -> Int -> Lane -> Lane

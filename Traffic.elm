@@ -4,351 +4,94 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (..)
 import Svg exposing (..)
 import Svg.Attributes exposing (..)
-import Random exposing (..)
 import Time exposing (..)
 import Array exposing (..)
 import Array.Extra exposing (..)
-import LaneSwitch exposing (..)
 import Types exposing (..)
 import Constants exposing (..)
 import Initial exposing (..)
-import Intersections exposing (..)
-import Lights exposing (..)
-import TrafficDrawing exposing (..)
+import Logic.Cars exposing (..)
+import Logic.LaneSwitch exposing (..)
+import Logic.Game exposing (..)
+import Interaction.RandomEffects exposing (..)
+import Interaction.User exposing (..)
+import Drawing.Lanes exposing (..)
+import Drawing.Lights exposing (..)
+import Drawing.Cars exposing (..)
+--
+-- --- Elm Traffic ---
+--
+-- Author: Matthias Süncksen
+--
+-- Goal of the game: switch the traffic lights to keep the cars flowing.
+--
+-- The basic data structure is an <Array Lane> with each Lane having
+-- an <Array Light> for every intersection and a <List Car> (of course).
+--
+-- The traffic lights are generated during initialization.
+-- Spawning of new cars and car turning decisions are random effects.
 
+-- For street map setup, see Initial.elm and Setup/*.elm
 --
--- Elm Traffic
---
+-- Random numbers: Interaction/RandomEffects.elm
+-- Car movement: Logic/Cars.elm + LaneSwitch.Elm
+-- SVG drawing: Drawing/*.elm
+
 
 -- called upon start
 init : (Model, Cmd a)
 init =
-  ( initialModel |> initialSetup , Cmd.none)
+  ( initialModel |> initialSetup , Cmd.none) -- see Initial.elm
 
-initialSetup : Model -> Model
-initialSetup model =
-  { model |
-     lanes = model.lanes
-             |> createLights
-             |> Array.map createSpawnFlag
-             |> findSwitchClusters
-
-     , svgLanes =
-       initialStreets |> Array.map drawStreet |> Array.foldr (++) []
-       -- model.lanes
-       -- |> Array.map drawLaneElements |> Array.foldr (++) []
-  }
-
-createSpawnFlag : Lane -> Lane
-createSpawnFlag lane =
-  { lane | spawn = (lane.startCoord.x == 0 && lane.direction == East)
-                    || (lane.endCoord.x == cityMapWidth && lane.direction == West)
-                    || (lane.startCoord.y == 0 && lane.direction == South)
-                    || (lane.endCoord.y == cityMapHeight && lane.direction == North)
-  }
 
 -- update
 update : Msg -> Model -> (Model, Cmd Msg)
 update msg model =
   case msg of
-    Pause -> ( {model | pause = not model.pause }, Cmd.none)
     Reset -> init
+
+    Pause -> ( {model | pause = not model.pause }, Cmd.none)
+
+    -- update model, generation random numbers
     TimerNext time ->
       if not model.pause then
-         (updateModel model, Cmd.batch (randomNumbers model) )
+         (updateModel model, Cmd.batch (Interaction.RandomEffects.randomNumbers model) )
       else
         (model, Cmd.none)
-    SwitchLight laneNo lightsNo ->
-      ( { model | lanes = switchLights model.lanes laneNo lightsNo }, Cmd.none)
 
+    -- user interaction
+    SwitchLight laneNo lightsNo ->
+      ( { model |
+            lanes = Interaction.User.switchLights model.lanes laneNo lightsNo }, Cmd.none)
+
+    -- update car spawn probability
     CarProbability randomList ->
       let
         randomArray = Array.fromList randomList
-        laneZippedWithRandom = Array.Extra.map2 (,) model.lanes randomArray
+        laneZippedWithRandom = Array.Extra.map2 (,) model.lanes randomArray -- zip lanes + randoms
       in
-        ({ model | lanes = Array.map addNewCar laneZippedWithRandom }, Cmd.none)
+        ({ model |
+             lanes = laneZippedWithRandom |> Array.map Interaction.RandomEffects.addNewCar  }, Cmd.none)
 
+    -- update junction probability
     TurnProbability laneId randomFloats ->
-      ({model | lanes = updateTurns laneId model.lanes (Array.fromList randomFloats)}, Cmd.none)
-
-updateTurns: Int -> Array Lane -> Array Float -> Array Lane
-updateTurns laneId lanes randomFloats =
-  let
-    getLane = Array.get laneId lanes
-  in
-    case getLane of
-      Nothing -> lanes
-      Just lane ->
-        let
-          lightsZippedWithRandom = Array.Extra.map2 (,) lane.lights randomFloats
-        in
-          lanes |> Array.set laneId { lane | lights = Array.Extra.map2 probeNextTurn lane.lights randomFloats}
-
-probeNextTurn: Light -> Float -> Light
-probeNextTurn light randomFloat =
-  { light | nextCarTurn =
-    case (light.left, light.right, light.straight) of
-      (Nothing, Nothing, False) -> Nothing
-      (Nothing, Nothing, True) -> Just Straight
-      (Just l, Nothing, False) -> Just (Left l)
-      (Nothing, Just r, False) -> Just (Right r)
-      (Just l, Nothing, True) -> if (randomFloat < 0.33) then Just (Left l) else Just Straight -- left or straight
-      (Nothing, Just r, True) -> if (randomFloat < 0.33) then Just (Right r) else Just Straight -- right or straight
-      (Just l, Just r, False) -> if (randomFloat < 0.5) then Just (Left l) else Just (Right r) -- left or right
-      (Just l, Just r, True) -> if (randomFloat < 0.33) then Just (Left l) else if (randomFloat > 0.66) then Just (Right r) else Just Straight -- left/right/straight
-  }
-
-randomNumbers: Model -> List (Cmd Msg)
-randomNumbers model =
-  let
-    -- probability for new car in lane
-    laneRandomCar = Random.generate CarProbability (Random.list (Array.length model.lanes) (Random.float 0 1))
-
-    -- probability for turns at junction lights
-    laneRandomTurns = Array.toList (Array.indexedMap (\laneId lane -> (Random.generate (TurnProbability laneId) (Random.list (Array.length lane.lights) (Random.float 0 1)) ) ) model.lanes)
-
-  in
-    laneRandomCar :: laneRandomTurns
-
--- add possible new car, update backlog
-addNewCar: (Lane,Float) -> Lane
-addNewCar (lane,probability) =
-  let
-    distance =
-      case (List.head lane.cars) of
-        Nothing -> infinity
-        Just car -> car.x
-    carToAdd =
-      if lane.spawn && probability > 0.991 then
-        1
-      else
-        0
-  in
-    if (carToAdd > 0 || lane.carBacklog > 0) then
-      if distance < carHalfLength + carSpace then
-         { lane | carBacklog = lane.carBacklog + carToAdd } -- no free space for car
-      else
-        { lane | cars = initialCar :: lane.cars,
-                 carBacklog = lane.carBacklog + carToAdd - 1} -- get from backlog
-    else
-      lane -- nothing to do
-
-switchLights: Array Lane -> Int -> Int -> Array Lane
-switchLights allLanes laneNo lightsNo =
-  case Array.get laneNo allLanes of
-    Nothing -> allLanes
-    Just lane ->
-      case Array.get lightsNo lane.lights of
-        Nothing -> allLanes
-        Just light ->
-          let
-            newLightState = (not light.on) -- toggles off/on
-            thisLightIndex = { laneId=laneNo, lightId = lightsNo}
-          in
-            allLanes |> setLightAtIndex (Just thisLightIndex) newLightState
-                     |> setLightAtIndex light.oppositeLightIndex newLightState
-                     |> setLightAtIndex light.leftLightIndex (not newLightState)
-                     |> setLightAtIndex light.rightLightIndex (not newLightState)
-
-
-
--- toggle light defined by LightIndex
-setLightAtIndex: Maybe LightIndex -> Bool -> Array Lane -> Array Lane
-setLightAtIndex maybeLightIndex lightState allLanes =
-  case maybeLightIndex of
-    Nothing -> allLanes
-    Just lightIndex ->
-      case Array.get lightIndex.laneId allLanes of
-        Nothing -> allLanes
-        Just lane ->
-          allLanes |> Array.set lightIndex.laneId (switchLightNo lane lightIndex.lightId lightState) -- update lane with switched light state
-
--- toggle light's .on field
-switchLightNo: Lane -> Int -> Bool -> Lane
-switchLightNo lane lightsNo state =
-  case Array.get lightsNo lane.lights of
-    Nothing -> lane
-    Just light -> {lane | lights = Array.set lightsNo { light | on = state } lane.lights }
-    --Just light -> {lane | lights = Array.set lightsNo { light | on = not light.on } lane.lights } -- toggles light.on
+      ({model | lanes = Interaction.RandomEffects.updateTurns laneId model.lanes (Array.fromList randomFloats)}, Cmd.none)
 
 
 updateModel: Model -> Model
 updateModel model =
   { model |
-      lanes = model.lanes |> Array.map checkCarMovement |> processCarLaneSwitch |> Array.map processCarMove,
-      gameOver = model.lanes |> checkBackLog backlogLimit lanesOverLimit,
+      lanes = model.lanes |> Array.map Logic.Cars.checkCarMovement |> Logic.LaneSwitch.processCarLaneSwitch |> Array.map Logic.Cars.processCarMove,
+      gameOver = model.lanes |> Logic.Game.checkBackLog backlogLimit lanesOverLimit,
       pause = model.pause || model.gameOver
   }
 
 
--- check car movement:
--- Going through lane's car list with foldr,
--- since cars most advanced are at the end of the list.
-checkCarMovement: Lane -> Lane
-checkCarMovement lane =
-  { lane | cars = lane.cars |> List.foldr (checkCarMove lane.direction lane.lights) [] }
-
--- Function for use with foldr:
--- current car is checked for
--- a. distance from first car of current cars list
--- b.
-checkCarMove: Direction -> Lights -> Car -> List Car -> List Car
-checkCarMove direction lights car cars =
-  let
-    carInFront = List.head cars
-
-    abstandCar =
-      case carInFront of
-        Nothing -> infinity
-        Just carInFront ->
-          carInFront.x - car.x
-
-    nextTrafficLight =
-      lights |> Array.foldl (\light nextLight -> nearestLight car.x light nextLight) Nothing
-
-    carClear1 = (abstandCar > carClearance)
-
-    carLightsDistance =
-        case nextTrafficLight of
-          Nothing -> infinity
-          Just light -> light.p - car.x
-
-    nextLightStraight =
-      case nextTrafficLight of
-        Nothing -> True
-        Just light -> light.straight || carLightsDistance < 0 || carLightsDistance == infinity
-
-    carClearLights1 = carLightsDistance > carClearanceHalf -- still away from lights stop
-    carClearLights2 = carLightsDistance < carClearanceHalf -- passed nearest light "yellow"
-    carClearLights3 = Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) -- lights are green
-
-    lightsClear = (carClearLights1 || carClearLights2 || carClearLights3)
-
-    junctionJammed =
-      case carInFront of
-        Nothing -> False
-        Just carx -> not carClearLights2 && not carClearLights1 && carClearLights3 && (abstandCar <=  carSpace + 2*laneWidth) -- && carx.carStatus /= Moving
-
-    -- get a turn decision from random number stored with light
-    carTurn =
-      if (carLightsDistance > 0 && carLightsDistance < carClearance && car.nextCarTurn == Nothing ) then
-        case nextTrafficLight of
-          Nothing -> Nothing
-          Just light ->
-            case light.nextCarTurn of
-              Nothing -> Nothing
-              Just carTurn -> Just carTurn
-      else
-        car.nextCarTurn
-
-    carCanMove = -- bool
-      if carClear1 && lightsClear && not junctionJammed then
-        if abstandCar > carSpeedClear && car.carStatus == Moving && nextLightStraight && (carLightsDistance > 2*carLength || carClearLights3) then -- && carLightsDistance > carSpeedClear then
-          2
-        else
-          1
-      else
-        0
-
-
-    carTurnAngle =
-      case car.nextCarTurn of
-        Nothing -> 0
-        Just Straight -> 0
-        Just (Left _) ->
-          -- for left turns, move over 1.5 * lane width
-          if carLightsDistance < -laneWidth && carLightsDistance >= -( laneWidth + laneHalfWidth) then
-            car.turnAngle - carTurnStep
-          else
-            car.turnAngle
-        Just (Right _) ->
-          -- for left turns, move over 0.5 * lane width
-          if carLightsDistance < 0 && carLightsDistance >= -laneHalfWidth then
-            car.turnAngle + carTurnStep
-          else
-            car.turnAngle
-
-    isTurning = not (carTurn ==  Nothing || carTurn == Just Straight)
-
-    movedCar =
-      { car |
-         distancePredecessor = abstandCar,
-         canMove = carCanMove,
-           -- case not isTurning of
-           --   True -> carCanMove
-           --   False -> 0 ,
-         nextCarTurn = carTurn,
-         carStatus =
-           if not isTurning then
-             case (carCanMove > 0, lightsClear) of
-               (False, False) -> LightsStop
-               (True, False) -> LightsStop
-               (False, True) -> JamStop
-               (True, True) -> Moving
-             else
-               if lightsClear then
-                 Turning
-               else
-                 LightsStop
-                 ,
-
-         switchNow =
-           case carTurn of
-              Just (Left _) -> carLightsDistance < -laneHalfWidth
-              Just (Right _) -> carLightsDistance < -laneHalfWidth
-              _ -> False
-         ,
-         turnAngle =
-          if car.turnAngle > 0 then
-            car.turnAngle - carTurnStep
-         else
-           if car.turnAngle < 0 then
-             car.turnAngle + carTurnStep
-           else
-             car.turnAngle
-
-      }
-  in
-    movedCar :: cars
-
--- returns the (absolute) nearest light
-nearestLight: Int -> Light -> Maybe Light -> Maybe Light
-nearestLight cx light1 light2 =
-  case (light1, light2) of
-    (l1, Nothing) -> Just l1
-    (l1, Just l2) ->
-      if abs (l1.p-cx) < abs (l2.p-cx) then
-        Just l1
-      else
-        Just l2
-
-
-processCarMove: Lane -> Lane
-processCarMove lane =
-  { lane | cars = lane.cars |> List.map moveCar |> List.filter (\car -> car.x < (lane.distance+laneWidth)) }
-
-moveCar: Car -> Car
-moveCar car =
-  case car.canMove > 0 of
-    False -> car
-    True -> { car |
-              x = car.x + car.canMove,
-              -- nextCarTurn = Nothing,
-              carStatus = Moving
-            }
-
--- Returns True for "game over". Happens with more than "maxLanes" over "maxBackLog"
-checkBackLog: Int -> Int -> Array Lane -> Bool
-checkBackLog maxBackLog maxLanes lanes  =
-  let
-    lanesOverLimit = lanes |> Array.filter (\lane -> lane.carBacklog > maxBackLog) |> Array.length
-  in
-    lanesOverLimit > maxLanes
-
--- autoplay timer
+-- autoplay timer : use 15 milliseconds for 60 fps
 subscriptions : Model -> Sub Msg
 subscriptions model =
   Time.every (15 * Time.millisecond) TimerNext
+
 
 -- svg view
 view : Model -> Html Msg
@@ -364,7 +107,6 @@ view model =
 
           , br [clearStyle] []
 
-
           , div [svgBoxStyle] [
               div [lawnStyle] [],
               div [svgStyle]
@@ -374,10 +116,10 @@ view model =
                                Svg.Attributes.height ((toString cityMapHeight)++"px")]
                 (
                 model.svgLanes -- streets
-                ++ (Array.toList (Array.indexedMap drawLightElements model.lanes) |> List.foldr (++) []) -- lights
-                ++ (model.lanes |> Array.filter (\lane -> lane.spawn) |> Array.map drawLaneBacklog |> Array.foldr (++) []) --
+                ++ (Array.toList (Array.indexedMap Drawing.Lights.drawLightElements model.lanes) |> List.foldr (++) []) -- lights
+                ++ (model.lanes |> Array.filter (\lane -> lane.spawn) |> Array.map Drawing.Lanes.drawLaneBacklog |> Array.foldr (++) []) --
                 ++
-                (  model.lanes |> Array.map (\lane -> List.map (svgCarBox lane) lane.cars  |> List.foldr (++) [] ) |> Array.foldr (++) [] )-- flatmap
+                (  model.lanes |> Array.map (\lane -> List.map (Drawing.Cars.svgCarBox lane) lane.cars  |> List.foldr (++) [] ) |> Array.foldr (++) [] )-- flatmap
                 )
               ]
           ]
@@ -393,6 +135,7 @@ gameStatus gameOver paused =
       h2 [floatLeftStyle] [Html.text "paused"]
     else
       h2 [floatLeftStyle] [Html.text "Switch lights!"]
+
 
 -- html checkbox
 checkbox : Msg -> String -> Html Msg

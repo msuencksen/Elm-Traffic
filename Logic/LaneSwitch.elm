@@ -1,8 +1,8 @@
-module LaneSwitch exposing (..)
+module Logic.LaneSwitch exposing (..)
 import Types exposing (..)
 import Constants exposing (..)
 import Array exposing (..)
-import Array.Extra exposing (..)
+
 
 -- switch turning cars (carStatus == Turning) to their next lane
 processCarLaneSwitch: Array Lane -> Array Lane

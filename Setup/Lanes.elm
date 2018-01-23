@@ -1,8 +1,9 @@
-module Setup exposing (..)
+module Setup.Lanes exposing (addStreetLanes,createSpawnFlag)
 import Types exposing (..)
 import Constants exposing (..)
 import Array exposing (..)
 
+-- This modules generates the lane array from the street array.
 
 defaultLane: Lane
 defaultLane = { cars=[], direction=East, lights=Array.empty, startCoord = {x=0,y=0}, endCoord = {x=0,y=0},
@@ -60,3 +61,12 @@ getLaneEndCoord street laneDirection =
     West -> { x = street.startCoord.x + street.distance, y = street.startCoord.y - laneHalfWidth } -- upper
     South -> { x = street.startCoord.x - laneHalfWidth, y = street.startCoord.y + street.distance } -- left lane
     North -> { x = street.startCoord.x + laneHalfWidth, y = street.startCoord.y + street.distance } -- right
+
+-- spawn flag: only lane starting at the map edges will spawn new cars
+createSpawnFlag : Lane -> Lane
+createSpawnFlag lane =
+  { lane | spawn = (lane.startCoord.x == 0 && lane.direction == East)
+                    || (lane.endCoord.x == cityMapWidth && lane.direction == West)
+                    || (lane.startCoord.y == 0 && lane.direction == South)
+                    || (lane.endCoord.y == cityMapHeight && lane.direction == North)
+  }

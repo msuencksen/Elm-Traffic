@@ -67,6 +67,7 @@ type alias Lane = {
   spawn: Bool
 }
 
+-- a LightIndex uniquely identifies a light by lane and light array index
 type alias LightIndex = {
   laneId : Int,
   lightId : Int
