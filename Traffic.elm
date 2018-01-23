@@ -41,10 +41,10 @@ initialSetup model =
 
 createSpawnFlag : Lane -> Lane
 createSpawnFlag lane =
-  { lane | spawn = (lane.startCoord.x==0 && lane.direction == East)
+  { lane | spawn = (lane.startCoord.x == 0 && lane.direction == East)
                     || (lane.endCoord.x == cityMapWidth && lane.direction == West)
-                    || (lane.startCoord.y==0 && lane.direction == South)
-                    || (lane.endCoord.y== cityMapHeight && lane.direction == North)
+                    || (lane.startCoord.y == 0 && lane.direction == South)
+                    || (lane.endCoord.y == cityMapHeight && lane.direction == North)
   }
 
 -- update
@@ -239,7 +239,7 @@ checkCarMove direction lights car cars =
     carCanMove = -- bool
       if carClear1 && lightsClear && not junctionJammed then
         if abstandCar > carSpeedClear && car.carStatus == Moving && (carLightsDistance > 2*carLength || carClearLights3) then -- && carLightsDistance > carSpeedClear then
-          2
+          1
         else
           1
       else
@@ -343,16 +343,12 @@ view model =
 
         div [bodyStyle]
         [ h2 [floatLeftStyle] [Html.text "Some Traffic on Elm Street : "]
-          , if model.gameOver then
-              h2 [floatLeftStyle, redColorStyle] [Html.text " GAME OVER"]
-            else
-              h2 [floatLeftStyle] [Html.text " Switch lights!"]
-
+          , gameStatus model.gameOver model.pause
           , button [ onClick Reset, floatRightStyle] [ Html.text "Reset" ]
             , br [] []
             , br [] []
           , checkbox Pause "Pause"
-          
+
           , br [clearStyle] []
 
 
@@ -360,7 +356,9 @@ view model =
               div [lawnStyle] [],
               div [svgStyle]
               [
-                svg [ viewBox ("0 0 "++(Basics.toString cityMapWidth)++" "++ (Basics.toString cityMapHeight)), Svg.Attributes.width ((toString cityMapWidth)++"px"),  Svg.Attributes.height ((toString cityMapHeight)++"px")]
+                svg [ viewBox ("0 0 "++(Basics.toString cityMapWidth)++" "++ (Basics.toString cityMapHeight)),
+                               Svg.Attributes.width ((toString (cityMapWidth))++"px"),
+                               Svg.Attributes.height ((toString cityMapHeight)++"px")]
                 (
                 model.svgLanes -- streets
                 ++ (Array.toList (Array.indexedMap drawLightElements model.lanes) |> List.foldr (++) []) -- lights
@@ -373,7 +371,15 @@ view model =
 
         ]
 
-
+gameStatus: Bool -> Bool -> Html Msg
+gameStatus gameOver paused =
+  if gameOver then
+    h2 [floatLeftStyle, redColorStyle] [Html.text "GAME OVER"]
+  else
+    if paused then
+      h2 [floatLeftStyle] [Html.text "paused"]
+    else
+      h2 [floatLeftStyle] [Html.text "Switch lights!"]
 
 -- html checkbox
 checkbox : Msg -> String -> Html Msg
@@ -397,7 +403,7 @@ redColorStyle =
   Html.Attributes.style [("color","red")]
 
 floatLeftStyle =
-    Html.Attributes.style [("float","left")]
+    Html.Attributes.style [("float","left"),("margin-right","1em")]
 
 floatRightStyle =
   Html.Attributes.style [("float","right")]

@@ -20,11 +20,11 @@ initialStreets = Array.fromList
 
                  {  streetDirection = NorthSouth,
                     startCoord = {x=210, y=0},
-                    distance = 1600
+                    distance = cityMapHeight
                  },
                   { streetDirection = EastWest,
                     startCoord = {x=0, y=410},
-                    distance = 1600
+                    distance = cityMapWidth
                   },
                   { streetDirection = EastWest,
                     startCoord = {x=0, y=210},
@@ -32,7 +32,7 @@ initialStreets = Array.fromList
                   },
                   { streetDirection = EastWest,
                     startCoord = {x=0, y=610},
-                    distance = 1600
+                    distance = cityMapWidth
                   },
 
                   {  streetDirection = NorthSouth, -- northern T junction with EastWest street: y+distance must match an EastWest street with y == y + distance - laneHalfWidth
@@ -45,11 +45,15 @@ initialStreets = Array.fromList
                   },
                   {  streetDirection = NorthSouth,
                      startCoord = {x=1400, y=0},
-                     distance = 800
+                     distance = cityMapHeight
                   }
                   ,
                   {  streetDirection = NorthSouth,
                      startCoord = {x=500, y=620},
+                     distance = 180
+                  },
+                  {  streetDirection = NorthSouth,
+                     startCoord = {x=1000, y=420},
                      distance = 180
                   }
                   --

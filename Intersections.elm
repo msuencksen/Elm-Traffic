@@ -112,7 +112,7 @@ laneIntersect l1id l1 l2id l2 =
             False -> Nothing
             True ->
               let
-                goesStraight = False -- not ((abs (l1.distance - intersectY)) < 2* laneWidth )
+                goesStraight =  not ((abs (l1.distance - intersectY)) < 2* laneWidth )
                 goesLeft = l1.startCoord.x <= l2.endCoord.x + laneWidth && l1.startCoord.x > l2.startCoord.x
                 goesRight = (l2.startCoord.x + l2.distance) > l1.startCoord.x
                 leftTurn =

@@ -78,7 +78,7 @@ svgLight lightId light laneId laneStart dir distance =
         South -> { x=laneStart.x - laneWidth ,
                    y=laneStart.y + light.p - lightStreetSpacing}
         North -> { x=laneStart.x + laneWidth,
-                    y=laneStart.y + distance - light.p }-- + 2* lightStreetSpacing}
+                    y=laneStart.y + distance - light.p } -- + 2* lightStreetSpacing}
 
 
     lightRotation =
@@ -96,7 +96,11 @@ svgLight lightId light laneId laneStart dir distance =
               Svg.Attributes.height (toString lightHeight),
               transform (rotationTransform),
               onClick (SwitchLight laneId lightId),
-              fill "#303030" ] []
+              -- case light.left of
+              --   Nothing -> fill "white"
+              --   _ -> fill "#303030"
+              fill "#303030"
+                 ] []
 
     lightRedSvg = circle [ cx (toString (lightPos.x+lightFireCenterBothX)),
                            cy (toString (lightPos.y+lightFireCenterBothX)),
@@ -110,9 +114,28 @@ svgLight lightId light laneId laneStart dir distance =
                              onClick (SwitchLight laneId lightId),
                              transform (rotationTransform),
                              fill (lightFireFill (Green (not light.on))) ] []
-  in
-    [lightSvgBox, lightRedSvg, lightGreenSvg]
 
+    lightTextSvg = Svg.text_ [x (toString lightPos.x), y (toString lightPos.y), color "white"] [Svg.text (debugLight light laneId)]
+  in
+    [lightSvgBox, lightRedSvg, lightGreenSvg, lightTextSvg]
+
+debugLight: Light -> Int -> String
+debugLight light laneId =
+  let
+    leftStr =
+      case light.left of
+        Nothing -> ""
+        Just id -> " l:"++ (toString id)
+    rightStr =
+      case light.right of
+        Nothing -> ""
+        Just id -> " r:"++ (toString id)
+    straightStr =
+      case light.straight of
+        False -> ""
+        True -> " s: " ++ (toString laneId)
+   in
+     leftStr ++ rightStr ++ straightStr
 
 lightFireFill: LightFire -> String
 lightFireFill lightfire =
@@ -154,7 +177,7 @@ svgCarBox lane car =
 
   in
     [ svgCar1 px py boxWidth boxHeight boxRotationAngle (svgCarColor car.nextCarTurn)
-    , Svg.text_ [x (toString px), y (toString py), color "red"] [] -- [Svg.text (debugCarStatus car)]
+      --, Svg.text_ [x (toString px), y (toString py), color "red"] [Svg.text (debugCarStatus car)]
     ]
 
 debugCarStatus: Car -> String

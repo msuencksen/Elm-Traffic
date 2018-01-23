@@ -4,13 +4,13 @@ import Constants exposing (..)
 import Array exposing (..)
 import Array.Extra exposing (..)
 
---
+-- switch turning cars (carStatus == Turning) to their next lane
 processCarLaneSwitch: Array Lane -> Array Lane
 processCarLaneSwitch lanes =
   let
-    switchFromLaneFuncs = Array.indexedMap (\laneId lane -> switchCarsFromTo laneId lane) lanes -- array of function
+    switchFromLaneFuncs = Array.indexedMap (\laneId lane -> switchCarsFromTo laneId lane) lanes -- create array of functions
   in
-    Array.foldr (\switchFunc allLanes-> switchFunc allLanes) lanes switchFromLaneFuncs
+    switchFromLaneFuncs |> Array.foldr (\switchFunc allLanes-> switchFunc allLanes) lanes
 
 -- processCarLaneSwitch: Array Lane -> Array Lane
 -- processCarLaneSwitch lanes =
@@ -26,37 +26,12 @@ processCarLaneSwitch lanes =
 --         lanes |> switchCarsFromTo 0 l0 |> switchCarsFromTo 1 l1 |>switchCarsFromTo 2 l2 |> switchCarsFromTo 3 l3 |> switchCarsFromTo 4 l4
 --       _ -> lanes
 
-entryAtJunction: Lane -> Lane -> Int
-entryAtJunction fromLane toLane =
-  case toLane.direction of
-    East -> fromLane.startCoord.x + laneWidth -- to east->west lane
-    West -> toLane.endCoord.x - fromLane.startCoord.x + laneHalfWidth-- to e<-w lane
-    South -> fromLane.startCoord.y + laneHalfWidth  -- to n->s lane
-    North -> toLane.endCoord.y - fromLane.startCoord.y + laneHalfWidth -- to s->n lane
-
--- return true if no car.x is in carClearance inverval near p
-entryAtJunctionFree: Lane -> Int -> Bool
-entryAtJunctionFree lane p =
-  let
-    gapBegin = p - carClearance
-    gapEnd = p + carClearance
-    carsNear = lane.cars |> List.filter (\car -> car.x > gapBegin && car.x < gapEnd )
-  in
-    (List.length carsNear)  == 0
-
-entryAtLeftTurnFree: Lane -> Int -> Bool
-entryAtLeftTurnFree oppositeLane p =
-  let
-    gapBegin = p
-    gapEnd = p + laneWidth
-    carsNear = oppositeLane.cars |> List.filter (\car -> car.carStatus /= WaitLeftTurn && car.x > gapBegin && car.x < gapEnd )
-  in
-    (List.length carsNear)  == 0
 
 switchCarsFromTo: Int -> Lane -> Array Lane -> Array Lane
 switchCarsFromTo fromLaneId fromLane allLanes =
   let
-    switchCar = fromLane.cars |> List.filter (\car -> car.carStatus == Turning && car.nextCarTurn /= Nothing && car.nextCarTurn /= Just Straight ) |> List.head
+    switchCar = fromLane.cars |> List.filter (\car -> car.switchNow ) |> List.head
+    --switchCar = fromLane.cars |> List.filter (\car -> car.carStatus == Turning && car.nextCarTurn /= Nothing && car.nextCarTurn /= Just Straight ) |> List.head
   in
     case switchCar of
       Nothing -> allLanes
@@ -100,6 +75,34 @@ switchCarsFromTo fromLaneId fromLane allLanes =
                            |> Array.set fromLaneId (removeCarFromLane fromLane car.x)
                 else
                   allLanes |> Array.set fromLaneId (updateWaitingCar fromLane car free waitForIncoming)
+
+
+entryAtJunction: Lane -> Lane -> Int
+entryAtJunction fromLane toLane =
+  case toLane.direction of
+    East -> fromLane.startCoord.x + laneWidth -- to east->west lane
+    West -> toLane.endCoord.x - fromLane.startCoord.x + laneHalfWidth-- to e<-w lane
+    South -> fromLane.startCoord.y + laneHalfWidth  -- to n->s lane
+    North -> toLane.endCoord.y - fromLane.startCoord.y + laneHalfWidth -- to s->n lane
+
+-- return true if no car.x is in carClearance inverval near p
+entryAtJunctionFree: Lane -> Int -> Bool
+entryAtJunctionFree lane p =
+  let
+    gapBegin = p - carClearance
+    gapEnd = p + carClearance
+    carsNear = lane.cars |> List.filter (\car -> car.x > gapBegin && car.x < gapEnd )
+  in
+    (List.length carsNear)  == 0
+
+entryAtLeftTurnFree: Lane -> Int -> Bool
+entryAtLeftTurnFree oppositeLane p =
+  let
+    gapBegin = p
+    gapEnd = p + laneWidth
+    carsNear = oppositeLane.cars |> List.filter (\car -> car.carStatus /= WaitLeftTurn && car.x > gapBegin && car.x < gapEnd )
+  in
+    (List.length carsNear)  == 0
 
 updateWaitingCar: Lane -> Car -> Bool -> Bool -> Lane
 updateWaitingCar lane waitingCar free waitForIncoming =

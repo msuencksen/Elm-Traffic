@@ -6,7 +6,6 @@ cityMapWidth = 1600
 cityMapHeight: Int
 cityMapHeight = 800
 
-
 carLength: Int
 carLength = 16
 

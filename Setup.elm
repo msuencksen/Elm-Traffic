@@ -8,7 +8,7 @@ defaultLane: Lane
 defaultLane = { cars=[], direction=East, lights=Array.empty, startCoord = {x=0,y=0}, endCoord = {x=0,y=0},
                 distance = 0, oppositeLane=-1, newCarProbability=0.5, newCarRandom01=0, carBacklog =0, spawn = False }
 
--- rules for lane coordinates: every lane goes from lower start to higher end coordinates, i.e. is defined left-to-right, or top-to-bottom
+-- For one street, push two opposite lanes to the lanes array.
 addStreetLanes: Street -> Array Lane -> Array Lane
 addStreetLanes street lanes =
   let
@@ -29,7 +29,7 @@ addStreetLanes street lanes =
         startCoord = getLaneStartCoord street laneDirection,
         endCoord = getLaneEndCoord street laneDirection,
         distance = street.distance,
-        oppositeLane = oppositeLaneId
+        oppositeLane = oppositeLaneId -- id
     }
 
     secondNewLane = { defaultLane |
@@ -37,13 +37,13 @@ addStreetLanes street lanes =
         startCoord = getLaneStartCoord street oppositeLaneDirection,
         endCoord = getLaneEndCoord street oppositeLaneDirection,
         distance = street.distance,
-        oppositeLane = nextLaneId
+        oppositeLane = nextLaneId -- id
     }
 
   in
     lanes |> Array.push firstNewLane |> Array.push secondNewLane
 
-
+-- get lane starting point for a lane direction
 getLaneStartCoord: Street -> Direction -> Point
 getLaneStartCoord street laneDirection =
   case laneDirection of
@@ -52,6 +52,7 @@ getLaneStartCoord street laneDirection =
     South -> { x = street.startCoord.x - laneHalfWidth, y = street.startCoord.y } -- left lane
     North -> { x = street.startCoord.x + laneHalfWidth, y = street.startCoord.y } -- right
 
+-- get lane ending point for a lane direction
 getLaneEndCoord: Street -> Direction -> Point
 getLaneEndCoord street laneDirection =
   case laneDirection of
