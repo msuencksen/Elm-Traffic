@@ -22,7 +22,8 @@ type alias Car = {
   canMove: Int,
   nextCarTurn: Maybe CarTurn,
   turnAngle: Int,
-  carStatus: CarStatus
+  carStatus: CarStatus,
+  switchNow: Bool
 }
 
 type alias Point = {x: Int, y: Int}

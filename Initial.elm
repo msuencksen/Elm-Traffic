@@ -11,7 +11,8 @@ initialCar = {
  nextCarTurn=Nothing,
  turnAngle=0,
  distancePredecessor=infinity,
- carStatus = Moving
+ carStatus = Moving,
+ switchNow = False
  }
 
 initialStreets: Array Street

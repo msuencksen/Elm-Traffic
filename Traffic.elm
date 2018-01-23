@@ -91,11 +91,11 @@ probeNextTurn light randomFloat =
       (Nothing, Nothing, False) -> Nothing
       (Nothing, Nothing, True) -> Just Straight
       (Just l, Nothing, False) -> Just (Left l)
-      (Just l, Nothing, True) -> if (randomFloat < 0.3) then Just (Left l) else Just Straight
       (Nothing, Just r, False) -> Just (Right r)
-      (Nothing, Just r, True) -> if (randomFloat < 0.3) then Just (Right r) else Just Straight
-      (Just l, Just r, False) -> if (randomFloat < 0.5) then Just (Left l) else Just (Right r)
-      (Just l, Just r, True) -> if (randomFloat < 0.33) then Just (Left l) else if (randomFloat > 0.66) then Just (Right r) else Just Straight
+      (Just l, Nothing, True) -> if (randomFloat < 0.33) then Just (Left l) else Just Straight -- left or straight
+      (Nothing, Just r, True) -> if (randomFloat < 0.33) then Just (Right r) else Just Straight -- right or straight
+      (Just l, Just r, False) -> if (randomFloat < 0.5) then Just (Left l) else Just (Right r) -- left or right
+      (Just l, Just r, True) -> if (randomFloat < 0.33) then Just (Left l) else if (randomFloat > 0.66) then Just (Right r) else Just Straight -- left/right/straight
   }
 
 randomNumbers: Model -> List (Cmd Msg)
@@ -213,6 +213,11 @@ checkCarMove direction lights car cars =
           Nothing -> infinity
           Just light -> light.p - car.x
 
+    nextLightStraight =
+      case nextTrafficLight of
+        Nothing -> True
+        Just light -> light.straight || carLightsDistance < 0 || carLightsDistance == infinity
+
     carClearLights1 = carLightsDistance > carClearanceHalf -- still away from lights stop
     carClearLights2 = carLightsDistance < carClearanceHalf -- passed nearest light "yellow"
     carClearLights3 = Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) -- lights are green
@@ -226,7 +231,7 @@ checkCarMove direction lights car cars =
 
     -- get a turn decision from random number stored with light
     carTurn =
-      if (carLightsDistance == carClearanceHalf && car.nextCarTurn == Nothing ) then
+      if (carLightsDistance > 0 && carLightsDistance < carClearance && car.nextCarTurn == Nothing ) then
         case nextTrafficLight of
           Nothing -> Nothing
           Just light ->
@@ -238,8 +243,8 @@ checkCarMove direction lights car cars =
 
     carCanMove = -- bool
       if carClear1 && lightsClear && not junctionJammed then
-        if abstandCar > carSpeedClear && car.carStatus == Moving && (carLightsDistance > 2*carLength || carClearLights3) then -- && carLightsDistance > carSpeedClear then
-          1
+        if abstandCar > carSpeedClear && car.carStatus == Moving && nextLightStraight && (carLightsDistance > 2*carLength || carClearLights3) then -- && carLightsDistance > carSpeedClear then
+          2
         else
           1
       else
@@ -268,10 +273,10 @@ checkCarMove direction lights car cars =
     movedCar =
       { car |
          distancePredecessor = abstandCar,
-         canMove =
-           case not isTurning of
-             True -> carCanMove
-             False -> 0 ,
+         canMove = carCanMove,
+           -- case not isTurning of
+           --   True -> carCanMove
+           --   False -> 0 ,
          nextCarTurn = carTurn,
          carStatus =
            if not isTurning then
@@ -286,6 +291,13 @@ checkCarMove direction lights car cars =
                else
                  LightsStop
                  ,
+
+         switchNow =
+           case carTurn of
+              Just (Left _) -> carLightsDistance < -laneHalfWidth
+              Just (Right _) -> carLightsDistance < -laneHalfWidth
+              _ -> False
+         ,
          turnAngle =
           if car.turnAngle > 0 then
             car.turnAngle - carTurnStep
@@ -299,6 +311,7 @@ checkCarMove direction lights car cars =
   in
     movedCar :: cars
 
+-- returns the (absolute) nearest light
 nearestLight: Int -> Light -> Maybe Light -> Maybe Light
 nearestLight cx light1 light2 =
   case (light1, light2) of
@@ -312,7 +325,7 @@ nearestLight cx light1 light2 =
 
 processCarMove: Lane -> Lane
 processCarMove lane =
-  { lane | cars = lane.cars |> List.map moveCar |> List.filter (\car -> car.x < lane.distance) }
+  { lane | cars = lane.cars |> List.map moveCar |> List.filter (\car -> car.x < (lane.distance+laneWidth)) }
 
 moveCar: Car -> Car
 moveCar car =
@@ -320,7 +333,7 @@ moveCar car =
     False -> car
     True -> { car |
               x = car.x + car.canMove,
-              nextCarTurn = Nothing,
+              -- nextCarTurn = Nothing,
               carStatus = Moving
             }
 

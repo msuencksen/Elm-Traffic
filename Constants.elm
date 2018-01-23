@@ -30,13 +30,16 @@ carClearanceHalf = carClearance // 2
 carSpeedClear: Int -- distance clear for speeding up
 carSpeedClear = 3 * carClearance
 
+carTurnStep = 90 // (laneWidth // 2) -- angle step
+
 laneWidth: Int
 laneWidth = 20
 
-carTurnStep = 90 // (laneWidth // 2)
-
 laneHalfWidth: Int
 laneHalfWidth = laneWidth // 2
+
+laneQuarteWidth: Int
+laneQuarteWidth = laneHalfWidth // 2
 
 lightWidth: Int
 lightWidth = 18
