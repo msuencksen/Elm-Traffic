@@ -80,7 +80,7 @@ switchCarsFromTo fromLaneId fromLane allLanes =
 entryAtJunction: Lane -> Lane -> Int
 entryAtJunction fromLane toLane =
   case toLane.direction of
-    East -> fromLane.startCoord.x + laneWidth -- to east->west lane
+    East -> fromLane.startCoord.x + laneHalfWidth -- to east->west lane
     West -> toLane.endCoord.x - fromLane.startCoord.x + laneHalfWidth-- to e<-w lane
     South -> fromLane.startCoord.y + laneHalfWidth  -- to n->s lane
     North -> toLane.endCoord.y - fromLane.startCoord.y + laneHalfWidth -- to s->n lane
@@ -89,8 +89,8 @@ entryAtJunction fromLane toLane =
 entryAtJunctionFree: Lane -> Int -> Bool
 entryAtJunctionFree lane p =
   let
-    gapBegin = p - carClearance
-    gapEnd = p + carClearance
+    gapBegin = p - 2*carClearance
+    gapEnd = p + 2*carClearance
     carsNear = lane.cars |> List.filter (\car -> car.x > gapBegin && car.x < gapEnd )
   in
     (List.length carsNear)  == 0

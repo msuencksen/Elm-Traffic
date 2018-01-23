@@ -69,7 +69,7 @@ addNewCar (lane,probability) =
         0
   in
     if (carToAdd > 0 || lane.carBacklog > 0) then
-      if distance < carHalfLength + carSpace then
+      if distance <= carSpace then
          { lane | carBacklog = lane.carBacklog + carToAdd } -- no free space for car
       else
         { lane | cars = initialCar :: lane.cars,

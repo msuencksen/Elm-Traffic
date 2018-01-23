@@ -53,13 +53,13 @@ checkCarMove direction lights car cars =
           Nothing -> infinity
           Just light -> light.p - car.x
 
-    nextLightStraight =
+    nearTJunction =
       case nextTrafficLight of
-        Nothing -> True
-        Just light -> light.straight || carLightsDistance < 0 || carLightsDistance == infinity
+        Nothing -> False
+        Just light -> not light.straight && carLightsDistance > 0 && carLightsDistance < carClearance
 
     carClearLights1 = carLightsDistance > carClearanceHalf -- still away from lights stop
-    carClearLights2 = carLightsDistance < carClearanceHalf -- passed nearest light "yellow"
+    carClearLights2 = carLightsDistance < 0 -- carClearanceHalf -- passed nearest light "yellow"
     carClearLights3 = Maybe.withDefault False (Maybe.map (\light -> not light.on) nextTrafficLight) -- lights are green
 
     lightsClear = (carClearLights1 || carClearLights2 || carClearLights3)
@@ -67,7 +67,7 @@ checkCarMove direction lights car cars =
     junctionJammed =
       case carInFront of
         Nothing -> False
-        Just carx -> not carClearLights2 && not carClearLights1 && carClearLights3 && (abstandCar <=  carSpace + 2*laneWidth) -- && carx.carStatus /= Moving
+        Just carx -> not carClearLights2 && not carClearLights1 && carClearLights3 && (abstandCar <=  carSpace + 4*laneWidth) -- && carx.carStatus /= Moving
 
     -- get a turn decision from random number stored with light
     carTurn =
@@ -87,9 +87,9 @@ checkCarMove direction lights car cars =
           else
             car.nextCarTurn
 
-    carCanMove = -- bool
-      if carClear1 && lightsClear && not junctionJammed then
-        if abstandCar > carSpeedClear && car.carStatus == Moving && nextLightStraight && (carLightsDistance > 2*carLength || carClearLights3) then -- && carLightsDistance > carSpeedClear then
+    carCanMove = -- int move step
+      if carClear1 && lightsClear && not junctionJammed && car.carStatus /= WaitLeftTurn  then
+        if abstandCar > carSpeedClear && car.carStatus == Moving && not nearTJunction && (carLightsDistance > 2*carLength || carClearLights3) then -- && carLightsDistance > carSpeedClear then
           2
         else
           1
