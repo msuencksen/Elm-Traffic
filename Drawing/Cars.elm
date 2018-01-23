@@ -38,7 +38,7 @@ svgCarBox lane car =
 
   in
     [ svgCar1 px py boxWidth boxHeight boxRotationAngle (svgCarColor car.nextCarTurn)
-      , Svg.text_ [x (toString px), y (toString py), color "red"] [Svg.text (debugCarStatus car)]
+      --, Svg.text_ [x (toString px), y (toString py), color "red"] [Svg.text (debugCarStatus car)]
     ]
 
 debugCarStatus: Car -> String
@@ -94,6 +94,6 @@ svgCarColor maybeCarTurn =
     Nothing -> "grey"
     Just carTurn ->
       case carTurn of
-        Left _ -> "green"
-        Right _ -> "red"
+        Left _ -> "yellow"
+        Right _ -> "#6060ff"
         Straight -> "white"

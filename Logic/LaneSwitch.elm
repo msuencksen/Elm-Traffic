@@ -26,7 +26,7 @@ processCarLaneSwitch lanes =
 --         lanes |> switchCarsFromTo 0 l0 |> switchCarsFromTo 1 l1 |>switchCarsFromTo 2 l2 |> switchCarsFromTo 3 l3 |> switchCarsFromTo 4 l4
 --       _ -> lanes
 
-
+-- try to switch turning cars
 switchCarsFromTo: Int -> Lane -> Array Lane -> Array Lane
 switchCarsFromTo fromLaneId fromLane allLanes =
   let

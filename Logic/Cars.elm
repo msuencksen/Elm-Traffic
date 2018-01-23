@@ -3,17 +3,35 @@ import Types exposing (..)
 import Constants exposing (..)
 import Array exposing (..)
 
--- check car movement:
+-- check for car movement:
 -- Going through lane's car list with foldr,
 -- since cars most advanced are at the end of the list.
-checkCarMovement: Lane -> Lane
-checkCarMovement lane =
+updateCars: Lane -> Lane
+updateCars lane =
   { lane | cars = lane.cars |> List.foldr (checkCarMove lane.direction lane.lights) [] }
+
+-- actually move cars
+processCarMove: Lane -> Lane
+processCarMove lane =
+  { lane | cars = lane.cars |> List.map moveCar |> List.filter (\car -> car.x < (lane.distance+laneWidth)) }
+
+moveCar: Car -> Car
+moveCar car =
+  case car.canMove > 0 of
+    False -> car
+    True -> { car |
+              x = car.x + car.canMove,
+              -- nextCarTurn = Nothing,
+              carStatus = Moving
+            }
+
 
 -- Function for use with foldr:
 -- current car is checked for
 -- a. distance from first car of current cars list
--- b.
+-- b. distance to nearest light
+-- c. prepared for lane switch at junctions
+--
 checkCarMove: Direction -> Lights -> Car -> List Car -> List Car
 checkCarMove direction lights car cars =
   let
@@ -53,15 +71,21 @@ checkCarMove direction lights car cars =
 
     -- get a turn decision from random number stored with light
     carTurn =
-      if (carLightsDistance > 0 && carLightsDistance < carClearance && car.nextCarTurn == Nothing ) then
-        case nextTrafficLight of
-          Nothing -> Nothing
-          Just light ->
-            case light.nextCarTurn of
+      case car.nextCarTurn of
+        Just _ -> if car.nextCarTurn == Just Straight && carLightsDistance < 0 then
+                    Nothing -- reset for cars going straight
+                  else
+                    car.nextCarTurn
+        Nothing ->
+          if (carLightsDistance > 0 && carLightsDistance < carClearance) then
+            case nextTrafficLight of
               Nothing -> Nothing
-              Just carTurn -> Just carTurn
-      else
-        car.nextCarTurn
+              Just light ->
+                case light.nextCarTurn of
+                  Nothing -> Nothing
+                  Just carTurn -> Just carTurn
+          else
+            car.nextCarTurn
 
     carCanMove = -- bool
       if carClear1 && lightsClear && not junctionJammed then
@@ -143,18 +167,3 @@ nearestLight cx light1 light2 =
         Just l1
       else
         Just l2
-
-
-processCarMove: Lane -> Lane
-processCarMove lane =
-  { lane | cars = lane.cars |> List.map moveCar |> List.filter (\car -> car.x < (lane.distance+laneWidth)) }
-
-moveCar: Car -> Car
-moveCar car =
-  case car.canMove > 0 of
-    False -> car
-    True -> { car |
-              x = car.x + car.canMove,
-              -- nextCarTurn = Nothing,
-              carStatus = Moving
-            }

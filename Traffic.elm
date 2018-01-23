@@ -81,7 +81,7 @@ update msg model =
 updateModel: Model -> Model
 updateModel model =
   { model |
-      lanes = model.lanes |> Array.map Logic.Cars.checkCarMovement |> Logic.LaneSwitch.processCarLaneSwitch |> Array.map Logic.Cars.processCarMove,
+      lanes = model.lanes |> Array.map Logic.Cars.updateCars |> Logic.LaneSwitch.processCarLaneSwitch |> Array.map Logic.Cars.processCarMove,
       gameOver = model.lanes |> Logic.Game.checkBackLog backlogLimit lanesOverLimit,
       pause = model.pause || model.gameOver
   }
