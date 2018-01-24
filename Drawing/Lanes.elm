@@ -28,10 +28,10 @@ drawLaneBacklog lane =
   let
     fontSize =
       if lane.carBacklog < 5 then
-        "12px"
+        "16px"
       else
         if lane.carBacklog > 15 then
-          "48px"
+          "32px"
         else
           "24px"
 
