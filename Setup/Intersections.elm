@@ -55,7 +55,7 @@ laneIntersect l1id l1 l2id l2 =
         let
           intersectX = l1.endCoord.x - l2.startCoord.x
           intersectY = l2.endCoord.y - l1.startCoord.y
-          intersecting = (intersectX >= -laneWidth && intersectX <= l1.distance + laneWidth) && (intersectY > -laneWidth && intersectY <= l2.distance + laneWidth)
+          intersecting = (intersectX >= laneWidth && intersectX <= l1.distance + laneWidth) && (intersectY > -laneWidth && intersectY <= l2.distance + laneWidth)
         in
           case intersecting of
             False -> Nothing
@@ -73,7 +73,7 @@ laneIntersect l1id l1 l2id l2 =
                     True -> Just l2id
                     False -> Nothing
               in
-                Just { defaultLight | on=False, straight=goesStraight, p = intersectX - 2 *margin, left=leftTurn, right=rightTurn, straight = goesStraight}
+                Just { defaultLight | on=False, straight=goesStraight, p = intersectX - 2 *margin, left=leftTurn, right=rightTurn}
 
 
       (South,West) -> -- light for S in SxW
