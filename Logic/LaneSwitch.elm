@@ -30,8 +30,8 @@ processCarLaneSwitch lanes =
 switchCarsFromTo: Int -> Lane -> Array Lane -> Array Lane
 switchCarsFromTo fromLaneId fromLane allLanes =
   let
-    switchCar = fromLane.cars |> List.filter (\car -> car.switchNow ) |> List.head
-    --switchCar = fromLane.cars |> List.filter (\car -> car.carStatus == Turning && car.nextCarTurn /= Nothing && car.nextCarTurn /= Just Straight ) |> List.head
+    --switchCar = fromLane.cars |> List.filter (\car -> car.switchNow ) |> List.head
+    switchCar = fromLane.cars |> List.filter (\car -> (car.carStatus == Turning || car.carStatus == WaitLeftTurn || car.carStatus == WaitRightTurn) && car.nextCarTurn /= Nothing && car.nextCarTurn /= Just Straight ) |> List.head
   in
     case switchCar of
       Nothing -> allLanes
@@ -70,7 +70,7 @@ switchCarsFromTo fromLaneId fromLane allLanes =
                     Just oppositeLane -> not (entryAtLeftTurnFree oppositeLane (oppositeLane.distance - car.x - 2*laneWidth)) -- entryPoint d-car.p
 
               in
-                if (free && not waitForIncoming) then
+                if (car.switchNow && free && not waitForIncoming) then
                   allLanes |> Array.set toLaneId (addCarToLane toLane car entryPoint turnTo)
                            |> Array.set fromLaneId (removeCarFromLane fromLane car.x)
                 else
@@ -89,8 +89,8 @@ entryAtJunction fromLane toLane =
 entryAtJunctionFree: Lane -> Int -> Bool
 entryAtJunctionFree lane p =
   let
-    gapBegin = p - 2*carClearance
-    gapEnd = p + 2*carClearance
+    gapBegin = p - carClearance
+    gapEnd = p + carClearance
     carsNear = lane.cars |> List.filter (\car -> car.x > gapBegin && car.x < gapEnd )
   in
     (List.length carsNear)  == 0
@@ -99,7 +99,7 @@ entryAtLeftTurnFree: Lane -> Int -> Bool
 entryAtLeftTurnFree oppositeLane p =
   let
     gapBegin = p
-    gapEnd = p + laneWidth
+    gapEnd = p + 2 * laneWidth
     carsNear = oppositeLane.cars |> List.filter (\car -> car.carStatus /= WaitLeftTurn && car.x > gapBegin && car.x < gapEnd )
   in
     (List.length carsNear)  == 0
@@ -108,9 +108,14 @@ updateWaitingCar: Lane -> Car -> Bool -> Bool -> Lane
 updateWaitingCar lane waitingCar free waitForIncoming =
   let
     updatedCar =
-      { waitingCar | carStatus =
+      { waitingCar | canMove =
+                       if waitingCar.switchNow || waitingCar.carStatus /= Turning then
+                         0
+                       else
+                         1
+                     ,carStatus =
                        case (free, waitForIncoming) of
-                         (False, False) -> JamStop
+                         (False, False) -> WaitRightTurn
                          (True, False) -> JamStop -- never reached currently
                          (False, True) -> WaitLeftTurn
                          (True, True) -> WaitLeftTurn

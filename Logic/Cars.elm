@@ -20,9 +20,7 @@ moveCar car =
   case car.canMove > 0 of
     False -> car
     True -> { car |
-              x = car.x + car.canMove,
-              -- nextCarTurn = Nothing,
-              carStatus = Moving
+              x = car.x + car.canMove
             }
 
 
@@ -88,7 +86,7 @@ checkCarMove direction lights car cars =
             car.nextCarTurn
 
     carCanMove = -- int move step
-      if carClear1 && lightsClear && not junctionJammed && car.carStatus /= WaitLeftTurn  then
+      if carClear1 && lightsClear && not junctionJammed && not (( car.carStatus == WaitLeftTurn || car.carStatus == WaitRightTurn ) && carLightsDistance <= -laneHalfWidth) then
         if abstandCar > carSpeedClear && car.carStatus == Moving && not nearTJunction && (carLightsDistance > 2*carLength || carClearLights3) then -- && carLightsDistance > carSpeedClear then
           2
         else
@@ -130,18 +128,21 @@ checkCarMove direction lights car cars =
                (False, False) -> LightsStop
                (True, False) -> LightsStop
                (False, True) -> JamStop
-               (True, True) -> Moving
+               (True, True) -> if car.carStatus == Turning then
+                                 Turning
+                               else
+                                 Moving
              else
-               if lightsClear then
-                 Turning
-               else
-                 LightsStop
-                 ,
-
-         switchNow =
+               case (carCanMove > 0, lightsClear) of
+                 (False, False) -> LightsStop
+                 (True, False) -> LightsStop
+                 (False, True) -> JamStop
+                 (True, True) -> Turning
+                 
+         ,switchNow =
            case carTurn of
-              Just (Left _) -> carLightsDistance < -laneHalfWidth
-              Just (Right _) -> carLightsDistance < -laneHalfWidth
+              Just (Left _) -> carLightsDistance <  -carSpace -- carClearanceHalf
+              Just (Right _) -> carLightsDistance <  -carSpace -- carClearanceHalf
               _ -> False
          ,
          turnAngle =

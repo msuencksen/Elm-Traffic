@@ -14,7 +14,7 @@ type TurnTo =
   TurnToLeft | TurnToRight
 
 type CarStatus =
-  Moving | LightsStop | JamStop | WaitLeftTurn | Turning | TurningIn
+  Moving | LightsStop | JamStop | WaitLeftTurn | WaitRightTurn | Turning | TurningIn
 
 type alias Car = {
   x: Int,
